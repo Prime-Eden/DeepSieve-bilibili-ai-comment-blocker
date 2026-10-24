@@ -1,0 +1,81 @@
+{
+  "manifest_version": 3,
+  "name": "DeepSieve · AI 评论滤除",
+  "short_name": "DeepSieve",
+  "version": "2.12.2",
+  "description": "B 站 AI 评论无感滤除器：接口拦截 + 判定前置 + 评分兜底三层深筛，自学习强化回路，可疑徽标与一键清理，全程可审计。不管哪家 AI 的水军。",
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "action": {
+    "default_popup": "popup/popup.html",
+    "default_title": "DeepSieve · AI 评论滤除",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png"
+    }
+  },
+  "options_ui": {
+    "page": "popup/popup.html",
+    "open_in_tab": true
+  },
+  "background": {
+    "service_worker": "src/background.js"
+  },
+  "commands": {
+    "clear": {
+      "suggested_key": { "default": "Alt+Shift+S" },
+      "description": "清理本页已识别的大肥鱼"
+    }
+  },
+  "permissions": [
+    "storage",
+    "unlimitedStorage"
+  ],
+  "host_permissions": [
+    "https://api.deepseek.com/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": [
+        "https://*.bilibili.com/*"
+      ],
+      "exclude_matches": [
+        "https://live.bilibili.com/*",
+        "https://message.bilibili.com/*",
+        "https://passport.bilibili.com/*",
+        "https://member.bilibili.com/*"
+      ],
+      "js": [
+        "src/main-world.js"
+      ],
+      "world": "MAIN",
+      "run_at": "document_start"
+    },
+    {
+      "matches": [
+        "https://*.bilibili.com/*"
+      ],
+      "exclude_matches": [
+        "https://live.bilibili.com/*",
+        "https://message.bilibili.com/*",
+        "https://passport.bilibili.com/*",
+        "https://member.bilibili.com/*"
+      ],
+      "js": [
+        "src/icons.js",
+        "src/storage.js",
+        "src/detector.js",
+        "src/counter.js",
+        "src/comments.js",
+        "src/space.js",
+        "src/bubble.js",
+        "src/content.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ]
+}

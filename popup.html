@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DeepSieve · AI 评论滤除</title>
+<link rel="stylesheet" href="popup.css">
+</head>
+<body>
+<main class="app">
+  <header class="hero">
+    <div class="hero-txt">
+      <h1>DeepSieve · AI 评论滤除</h1>
+      <p class="sub">识别命中即隐藏 · 无动画 · 无提示</p>
+      <div class="fp" id="fp" title="扩展指纹：装了两份的话，两个面板这里的 ID 会不同"></div>
+    </div>
+    <label class="power" title="总开关"><input type="checkbox" id="enabled"><span><b class="on">运行中</b><b class="off">已停用</b></span></label>
+  </header>
+
+  <section class="stats">
+    <div><b id="s-today">0</b><span>今日新增屏蔽</span></div>
+    <div><b id="s-total">0</b><span>累计屏蔽账号</span></div>
+    <div><b id="s-seen">0</b><span>前科记忆</span></div>
+  </section>
+
+  <section class="here" id="here">
+    <div class="here-txt"><b id="here-t">本页</b><span id="here-s">正在读取状态……</span></div>
+    <div class="bands" id="here-b"></div>
+    <div class="here-btns" id="here-btns"></div>
+  </section>
+
+  <nav class="tabs" id="tabs">
+    <button data-tab="detect">识别</button>
+    <button data-tab="words">屏蔽词</button>
+    <button data-tab="ds">DeepSeek</button>
+    <button data-tab="lists">名单</button>
+  </nav>
+
+  <section class="panel" data-panel="detect">
+    <div class="field-h">鉴定严格度 <em id="th-val">60</em></div>
+    <div class="slider"><span>宽松</span><input type="range" id="threshold" min="45" max="80" step="5"><span>严格</span></div>
+    <p class="hint" id="th-hint"></p>
+    <div class="field-h">楼中楼处理</div>
+    <div class="seg" id="sub-policy">
+      <button data-v="fish">只隐藏该账号</button>
+      <button data-v="thread">整楼隐藏</button>
+      <button data-v="ignore">不管楼中楼</button>
+    </div>
+    <p class="hint" id="sub-hint"></p>
+    <div class="row"><span class="lbl">显示「已清 N 条」计数</span><label class="switch"><input type="checkbox" id="showCount"><span></span></label></div>
+    <div class="row"><span class="lbl">悬浮控制台（清扫台 · 可拖动）</span><label class="switch"><input type="checkbox" id="showBubble"><span></span></label></div>
+    <div class="row"><span class="lbl">前科记忆 <em class="mini" id="seen-n">0</em></span><button class="link" id="seen-clear">清空</button></div>
+    <p class="hint small">同一账号在多个视频下都被认出是大肥鱼，以后见到会直接加分。只存在本机。</p>
+    <p class="hint small keys">快捷键：<kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>S</kbd> 清理本页</p>
+  </section>
+
+  <section class="panel" data-panel="words">
+    <p class="hint top">评论命中任意一个词 → 该账号直接隐藏。不分大小写，包含即命中，所有档位生效。最多 100 个词。</p>
+    <div class="word-add">
+      <input type="text" id="word-in" placeholder="输入一个词，回车添加" maxlength="24" autocomplete="off" spellcheck="false">
+      <button class="btn" id="word-add">添加</button>
+    </div>
+    <div class="chips" id="words"></div>
+    <p class="hint small" id="words-n"></p>
+  </section>
+
+  <section class="panel ds" data-panel="ds">
+    <div class="row first"><span class="lbl">开启 DeepSeek 精判</span><label class="switch"><input type="checkbox" id="llmEnabled"><span></span></label></div>
+    <p class="hint">拿不准的账号交给 DeepSeek 再判一次，结果静默生效。</p>
+    <div id="ds-body">
+      <div class="keybox"><input type="password" id="llmKey" placeholder="API Key：sk-..." autocomplete="off" spellcheck="false"><button id="eye" class="icon-btn" title="显示 / 隐藏">显示</button></div>
+      <select id="llmModel">
+        <option value="deepseek-flash">deepseek-flash · 快，能看头像</option>
+        <option value="deepseek-v4-pro">deepseek-v4-pro · 更准，更贵</option>
+      </select>
+      <div class="row"><span class="lbl">自动精判可疑账号</span><label class="switch"><input type="checkbox" id="llmAuto"><span></span></label></div>
+      <div class="row"><span class="lbl">空间鉴定时看头像</span><label class="switch"><input type="checkbox" id="llmVision"><span></span></label></div>
+      <div class="test"><button class="btn" id="test">测试连接</button><span id="test-res"></span></div>
+      <p class="hint small lock">密钥只保存在本机，只会发送到 api.deepseek.com。<a href="https://platform.deepseek.com/api_keys" target="_blank">申请密钥</a></p>
+    </div>
+  </section>
+
+  <section class="panel" data-panel="lists">
+    <div class="rec-card">
+      <div class="field-h">屏蔽名单 <em id="bl-n">0</em><span class="sub">引擎自动累积的账号</span></div>
+      <div class="list-tools"><input type="text" id="bl-q" placeholder="搜昵称或 UID" autocomplete="off" spellcheck="false"><button class="btn ghost sm" id="io-export" title="导出屏蔽名单和白名单（JSON）">导出</button><label class="btn ghost sm" title="导入名单，和现有名单合并（兼容原版格式）">导入<input type="file" id="io-import" accept="application/json,.json" hidden></label><button class="link danger" id="bl-clear" title="清空屏蔽名单（点两下确认）">清空</button></div>
+      <ul class="list" id="bl"></ul>
+    </div>
+
+    <div class="rec-card">
+      <div class="field-h">人类白名单 <em id="wl-n">0</em><span class="sub">恢复的账号放行到底，永不隐藏</span></div>
+      <div class="rec-actions"><button class="link danger" id="wl-clear">清空</button></div>
+      <ul class="list short" id="wl"></ul>
+    </div>
+
+    <div class="rec-card">
+      <div class="field-h">本页隐藏 <em id="rb-n">0</em><span class="sub">当前页面会话 · 点「恢复」放行账号</span></div>
+      <div class="rec-actions"><button class="link" id="rb-export" title="导出本页会话的隐藏记录（JSON）">导出本页</button></div>
+      <ul class="list short" id="rb"></ul>
+    </div>
+
+    <div class="rec-card">
+      <div class="field-h">隐藏总记录 <em id="rba-n">0</em><span class="sub">跨页面跨会话累计 · 上限 2000 条</span></div>
+      <div class="rec-actions">
+        <label class="link" title="自动识别格式：总记录 JSON 合并进总记录；名单 JSON 并入屏蔽名单/白名单">导入<input type="file" id="rba-import-file" accept="application/json,.json" hidden></label>
+        <button class="link" id="rba-export" title="导出全部隐藏记录（JSON）">导出全部</button>
+        <button class="link danger" id="rba-clear" title="清空总记录（点两下确认）">清空</button>
+      </div>
+    </div>
+
+    <div class="rec-card">
+      <div class="field-h">导入历史 <em id="ilh-n">0</em><span class="sub">每次导入的时间、类型与数量</span></div>
+      <ul class="list short" id="ilh"></ul>
+    </div>
+
+    <p class="hint small" id="selfcheck" title="绕过界面逻辑直读 chrome.storage 的原始计数，用于核对界面显示">存储自检：读取中…</p>
+  </section>
+
+  <footer>基于开源项目 dafeiyu-cleaner (MIT) 修改 · 数据只存本机 · 不读 Cookie · 不调用 B 站写接口</footer>
+</main>
+<script src="../src/icons.js"></script>
+<script src="../src/storage.js"></script>
+<script src="popup.js"></script>
+</body>
+</html>
