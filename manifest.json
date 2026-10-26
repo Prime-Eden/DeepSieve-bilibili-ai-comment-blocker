@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "DeepSieve · AI 评论滤除",
   "short_name": "DeepSieve",
-  "version": "2.12.2",
+  "version": "2.13.0",
   "description": "B 站 AI 评论无感滤除器：接口拦截 + 判定前置 + 评分兜底三层深筛，自学习强化回路，可疑徽标与一键清理，全程可审计。不管哪家 AI 的水军。",
   "icons": {
     "16": "icons/icon16.png",

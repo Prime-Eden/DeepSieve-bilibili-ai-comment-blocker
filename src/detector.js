@@ -244,6 +244,28 @@
       s += mBoost;
       reasons.push({ w: mBoost, why: '人工拉黑样本高频特征', tag: 'manual' });
     }
+    // 纯 @ 召唤：剥掉 @、emoji、标点后几乎无实质内容的评论。
+    // 账号发出的评论全部是 @（本页 ≥3 条）→ 行为级实锤，无视人类减分直接判鱼（用户授权：宁滥勿放）；
+    // 大部分是 @（≥60%）→ +22 加权，推过可疑线。
+    const atCore = (t) =>
+      String(t || '')
+        .replace(/@\S+/g, '')
+        .replace(/[\p{Extended_Pictographic}\u200d\ufe0f\s。，,．.!！?？~～·.…—\-_「」『』（）()【】\[\]]/gu, '');
+    const atAll = texts.filter((t) => {
+      const s2 = typeof t === 'string' ? t : t.text;
+      return /@\S+/.test(s2) && atCore(s2).length <= 2; // 必须真的含 @，否则超短正常评论会被误判
+    });
+    if (texts.length >= 3) {
+      const ratio = atAll.length / texts.length;
+      if (ratio === 1) {
+        const before = s;
+        s = Math.max(s, 75);
+        reasons.push({ w: Math.max(0, Math.round(s - before)), why: `发出的 ${atAll.length} 条评论全部是 @ 召唤（行为实锤，直接判鱼）`, tag: 'pureAt' });
+      } else if (ratio >= 0.6) {
+        s += 26;
+        reasons.push({ w: 26, why: `大部分评论都是 @ 召唤（${atAll.length}/${texts.length} 条）`, tag: 'pureAt' });
+      }
+    }
     // raw 不含「前科」，用来决定要不要记一笔前科，避免自我强化
     const raw = Math.max(0, Math.min(99, Math.round(s)));
     const prior = ctx.priorPages || 0;
