@@ -60,6 +60,7 @@
       <input type="text" id="word-in" placeholder="输入一个词，回车添加" maxlength="24" autocomplete="off" spellcheck="false">
       <button class="btn" id="word-add">添加</button>
     </div>
+    <div class="list-tools"><span class="sub">支持导入 txt（每行一词）或 JSON</span><button class="btn ghost sm" id="word-export" title="导出屏蔽词为 JSON">导出</button><label class="btn ghost sm" title="导入 txt（每行一词）或 JSON 数组">导入<input type="file" id="word-import" accept=".txt,.json,application/json,text/plain" hidden></label><button class="link danger" id="word-clear" title="清空全部屏蔽词（点两下确认）">清空</button></div>
     <div class="chips" id="words"></div>
     <p class="hint small" id="words-n"></p>
   </section>

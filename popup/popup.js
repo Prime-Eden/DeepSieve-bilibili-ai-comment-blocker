@@ -384,6 +384,53 @@
     DFY.store.set({ customWords: S.customWords });
     renderWords();
   };
+  /* 屏蔽词导入 / 导出 / 清空（支持 txt 每行一词 或 JSON 数组/{words:[...]}） */
+  $('word-import').onchange = async () => {
+    const f = $('word-import').files[0];
+    $('word-import').value = '';
+    if (!f) return;
+    let words = [];
+    const t = await f.text();
+    try {
+      const j = JSON.parse(t);
+      words = Array.isArray(j) ? j : (j && (j.words || j.customWords)) || [];
+    } catch (e) {
+      words = t.split(/\r?\n/); // txt：每行一词
+    }
+    words = words.map((w) => String(w == null ? '' : w).trim().slice(0, 24)).filter(Boolean);
+    if (!words.length) return note('文件里没有可识别的词', false);
+    const before = (S.customWords || []).length;
+    const seen = new Set(S.customWords.map((x) => x.toLowerCase()));
+    let added = 0;
+    for (const w of words) {
+      if (S.customWords.length >= 100) break;
+      const k = w.toLowerCase();
+      if (seen.has(k)) continue;
+      seen.add(k);
+      S.customWords.push(w);
+      added++;
+    }
+    await DFY.store.set({ customWords: S.customWords });
+    renderWords();
+    renderSelfCheck();
+    note(S.customWords.length >= 100 ? `导入完成：新增 ${added} 个，已达上限 100` : `导入完成：新增 ${added} 个（原有 ${before}）`, true);
+  };
+  $('word-export').onclick = () => {
+    if (!(S.customWords || []).length) return note('还没有屏蔽词可导出', false);
+    const data = { app: 'dafeiyu-clean', type: 'custom-words', words: S.customWords };
+    const url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 1)], { type: 'application/json' }));
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = '屏蔽词.json';
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+  };
+  confirm2($('word-clear'), async () => {
+    S.customWords = [];
+    await DFY.store.set({ customWords: [] });
+    renderWords();
+    note('屏蔽词已清空', true);
+  });
 
   /* ---------- 名单 ---------- */
   /* ---------- 名单写操作统一走后台串行队列（popup/标签页/后台多写者，直写必竞态） ---------- */
