@@ -146,6 +146,7 @@ footer { margin-top: auto; padding: 10px 16px; text-align: center; font-size: 10
 .link.danger:hover { text-decoration: underline; }
 .link.danger.armed { background: #fbe9ed; border-radius: 6px; padding: 2px 8px 2px 12px; }
 .field-h .link.danger { border-left: none; padding-left: 8px; }
+.field-h > .link:not(.danger) { margin-left: auto; color: #2546b8; }
 /* button 与 label.btn 基线差异导致的高度不齐：统一行内弹性盒与高度 */
 .list-tools .btn, .list-tools label.btn, .rec-actions .link { display: inline-flex; align-items: center; line-height: 1.5; }
 .list-tools .btn, .list-tools label.btn { height: 28px; }

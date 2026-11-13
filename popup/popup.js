@@ -77,12 +77,18 @@
     $('seen-n').textContent = Object.keys(S.seen || {}).length;
   }
 
+  let wordsOpen = false; // 词表默认折叠：500 词的 chips 常驻渲染没意义（UI 干净 + 省 DOM）
   function renderWords() {
     const ws = S.customWords || [];
-    $('words').innerHTML = ws.length
-      ? ws.map((w) => `<span class="chip">${esc(w)}<i data-w="${esc(w)}" title="删除">×</i></span>`).join('')
-      : '<span class="empty">还没有自定义屏蔽词</span>';
-    $('words-n').textContent = `${ws.length} / 100 个词`;
+    $('words-c').textContent = ws.length;
+    $('words').style.display = wordsOpen ? '' : 'none';
+    $('words').innerHTML = wordsOpen
+      ? (ws.length
+        ? ws.map((w) => `<span class="chip">${esc(w)}<i data-w="${esc(w)}" title="删除">×</i></span>`).join('')
+        : '<span class="empty">还没有自定义屏蔽词</span>')
+      : '';
+    $('words-toggle').textContent = wordsOpen ? '收起' : '展开';
+    $('words-n').textContent = `${ws.length} / 500 个词`;
   }
 
   /* ---------- 本页状态（设置页模式下也查询当前活动标签页，回收站/状态才能实时更新） ---------- */
@@ -355,7 +361,7 @@
   function addWord(raw) {
     const w = String(raw == null ? '' : raw).trim().slice(0, 24);
     if (!w) return { ok: false, msg: '词不能为空' };
-    if ((S.customWords || []).length >= 100) return { ok: false, msg: '最多 100 个词' };
+    if ((S.customWords || []).length >= 100) return { ok: false, msg: '最多 500 个词' };
     if (S.customWords.some((x) => x.toLowerCase() === w.toLowerCase())) return { ok: false, msg: '这个已经有了' };
     S.customWords.push(w);
     return { ok: true };
@@ -376,6 +382,10 @@
       e.preventDefault();
       commitWord();
     }
+  };
+  $('words-toggle').onclick = () => {
+    wordsOpen = !wordsOpen;
+    renderWords();
   };
   $('words').onclick = (e) => {
     const w = e.target.dataset && e.target.dataset.w;
@@ -413,7 +423,7 @@
     await DFY.store.set({ customWords: S.customWords });
     renderWords();
     renderSelfCheck();
-    note(S.customWords.length >= 100 ? `导入完成：新增 ${added} 个，已达上限 100` : `导入完成：新增 ${added} 个（原有 ${before}）`, true);
+    note(S.customWords.length >= 100 ? `导入完成：新增 ${added} 个，已达上限 500` : `导入完成：新增 ${added} 个（原有 ${before}）`, true);
   };
   $('word-export').onclick = () => {
     if (!(S.customWords || []).length) return note('还没有屏蔽词可导出', false);
