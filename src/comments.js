@@ -197,8 +197,8 @@
 .dfy-sus .ds{font-style:normal;font-size:9px;font-weight:800;line-height:14px;padding:0 4px;border-radius:4px;background:#3d5bd6;color:#fff}
 .dfy-sus .ks{border:0;background:#c2455a;color:#fff;font:700 9.5px/15px -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;padding:0 6px;border-radius:4px;cursor:pointer}
 .dfy-sus .ks:hover{background:#a83548}
-.dfy-blk{display:none;margin-left:6px;padding:1px 8px;border-radius:4px;background:#c2455a;color:#fff;font:700 10.5px/1.8 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;cursor:pointer;border:none;vertical-align:middle}
-.dfy-blk.show{display:inline-block}
+.dfy-blk{display:inline-block;max-width:0;padding:1px 0;margin-left:0;opacity:0;overflow:hidden;white-space:nowrap;border-radius:4px;background:#c2455a;color:#fff;font:700 10.5px/1.8 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;cursor:pointer;border:none;vertical-align:middle;pointer-events:none;transition:max-width .18s ease 1s,opacity .18s ease 1s,padding .18s ease 1s,margin-left .18s ease 1s}
+.dfy-blk.show,:host(:hover) .dfy-blk{max-width:80px;padding:1px 8px;margin-left:6px;opacity:1;pointer-events:auto;transition-delay:0s}
 .dfy-blk:hover{background:#a83548}
 .dfy-blk.undo{background:#2546b8}
 .dfy-blk.undo:hover{background:#1d3a9c}
@@ -250,36 +250,6 @@
       if (!susTip || susTip.style.display !== 'block') return;
       const path = e.composedPath ? e.composedPath() : [];
       if (path.some((n) => n.nodeType === 1 && n.hasAttribute && n.hasAttribute('data-dfy-sus'))) susTipHide();
-    },
-    true
-  );
-  // 悬停评论满 1 秒才显示「拉黑」按钮（防止划过误触；纯 JS 计时，单定时器）
-  let hbTimer = 0;
-  const HB_HOST = (path) => path.find((n) => n.nodeType === 1 && n.shadowRoot && n.shadowRoot.querySelector('.dfy-blk'));
-  document.addEventListener(
-    'mouseover',
-    (e) => {
-      const path = e.composedPath ? e.composedPath() : [];
-      const host = HB_HOST(path);
-      clearTimeout(hbTimer);
-      if (!host) return;
-      hbTimer = setTimeout(() => {
-        const b = host.shadowRoot && host.shadowRoot.querySelector('.dfy-blk');
-        if (b) b.classList.add('show');
-      }, 1000);
-    },
-    true
-  );
-  document.addEventListener(
-    'mouseout',
-    (e) => {
-      clearTimeout(hbTimer);
-      const path = e.composedPath ? e.composedPath() : [];
-      const host = HB_HOST(path);
-      if (host) {
-        const b = host.shadowRoot && host.shadowRoot.querySelector('.dfy-blk.show');
-        if (b) b.classList.remove('show');
-      }
     },
     true
   );
@@ -409,6 +379,7 @@
       btn.setAttribute('data-dfy-blk', a.acc.mid);
       const undoing = grace.has(String(a.acc.mid));
       btn.classList.toggle('undo', undoing);
+      btn.classList.toggle('show', undoing); // 撤销态强制立即可见（不受 1s 延迟影响）
       btn.title = undoing ? '撤销这次拉黑' : '立即拉黑该账号（3 秒内可撤销，可在名单页恢复）';
       const html = undoing ? '撤销' : '拉黑';
       if (btn.dataset.v !== html) {
