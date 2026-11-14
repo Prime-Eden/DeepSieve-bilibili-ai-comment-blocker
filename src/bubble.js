@@ -9,6 +9,13 @@
 :host{all:initial}
 *{box-sizing:border-box;margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif}
 .wrap{position:fixed;z-index:2147483000;display:flex;flex-direction:column;align-items:flex-end;gap:10px}
+.wrap.dock-l{align-items:flex-start}
+.wrap.dock-l .dot{transform:translateX(-42%)}
+.wrap.dock-r .dot{transform:translateX(42%)}
+.wrap.dock-l:hover .dot,.wrap.dock-l.open .dot{transform:none}
+.wrap.dock-r:hover .dot,.wrap.dock-r.open .dot{transform:none}
+.wrap .dot.dragging{transform:scale(1.08)}
+@media (prefers-reduced-motion: reduce){.menu.on{animation:none}.dot,.flash,.menu{transition:none!important}.dot.dragging{transform:none}}
 .wrap.below{flex-direction:column-reverse}
 .dot{position:relative;width:42px;height:42px;border-radius:50%;background:#2546b8;color:#fff;display:flex;align-items:center;justify-content:center;cursor:grab;box-shadow:0 0 0 2px rgba(255,255,255,.92),0 6px 20px rgba(0,0,0,.42);border:none;touch-action:none;user-select:none;transition:transform .12s ease,background .15s ease}
 .dot:hover{background:#1d3a9c}
@@ -115,6 +122,9 @@
     wrap.style.left = pos.x + 'px';
     wrap.style.top = pos.y + 'px';
     wrap.classList.toggle('below', pos.y < 340); // 顶部空间不足时菜单翻到按钮下方
+    // 贴边吸附：靠左右边缘时圆钮半收进屏幕，悬停或菜单打开时弹出（位置数据不变，纯渲染态）
+    wrap.classList.toggle('dock-l', pos.x <= MARGIN + 4);
+    wrap.classList.toggle('dock-r', pos.x >= window.innerWidth - SIZE - MARGIN - 4);
   }
 
   async function loadPos() {
@@ -225,6 +235,7 @@
 
   function close() {
     open = false;
+    if (wrap) wrap.classList.remove('open');
     if (menu) {
       menu.style.display = 'none';
       menu.classList.remove('on');
@@ -260,6 +271,7 @@
   function toggle() {
     open = !open;
     dismissHint();
+    if (wrap) wrap.classList.toggle('open', open);
     if (open) {
       renderMenu();
       if (menu) {
@@ -321,9 +333,41 @@
     if (sig === menuSig) return;
     menuSig = sig;
     menu.classList.toggle('dk', dark());
-    const bandHtml = sum
-      ? bands.map((v, i) => `<div class="band"><i style="width:${Math.round((v / sum) * 100)}%;background:${BAND_COLORS[i]}"></i>${BAND_LABELS[i]} ${v}</div>`).join('')
-      : '<div class="empty">还没有扫描到评论</div>';
+    // 骨架只建一次，后续全部定点更新——点击目标不再被整块 innerHTML 替换（吞点击根治）
+    if (!menu.querySelector('.hd')) {
+      menu.innerHTML = `
+<div class="hd"><b>清扫台</b><small class="vv"></small><button class="x" data-a="close" title="关闭菜单" aria-label="关闭菜单">×</button></div>
+<div class="st"><strong class="sn"></strong><span class="scan"></span></div>
+<div class="bands">${'<div class="band"><i></i><span class="bn"></span></div>'.repeat(4)}</div>
+<div class="actions">
+  <button class="action" data-a="clear">${DFY.icon('broom', 16, 2.2)}<span>清扫本页</span></button>
+  <button class="action secondary" data-a="box">${DFY.icon('frame', 16, 2)}<span>框选屏蔽</span></button>
+</div>
+<div class="field"><span class="field-label">灵敏度</span><div class="seg">${PRESETS.map((p2) => `<button data-th="${p2.t}" title="判定阈值 ${p2.t}%">${p2.label}</button>`).join('')}</div></div>
+<div class="learn" style="display:none"><span class="lt">人工强化</span><span class="lv"></span></div>
+<div class="recent"><div class="recent-hd"><span>最近隐藏</span><span class="rc"></span><button data-a="all" title="在设置页查看全部记录">全部记录 ↗</button></div><div class="rlist"></div></div>
+<div class="tools">
+  <button class="tool" data-a="rescan" title="重新扫描本页">${DFY.icon('search', 16, 2)}</button>
+  <button class="tool" data-a="count" title="已清计数条">${DFY.icon('report', 16, 2)}</button>
+  <button class="tool" data-a="toggle" title="暂停屏蔽">${DFY.icon('pause', 16, 2)}</button>
+  <button class="tool" data-a="cfg" title="打开设置面板">${DFY.icon('gear', 16, 2)}</button>
+  <button class="tool end" data-a="hidebubble" title="收起悬浮台（设置里可再开）">${DFY.icon('minus', 16, 2)}</button>
+</div>`;
+    }
+    const q = (sel) => menu.querySelector(sel);
+    q('.vv').textContent = 'v' + ver();
+    q('.sn').textContent = n;
+    q('.scan').textContent = `条已清 · 扫描 ${s.accounts || 0} 账号`;
+    const bEls = menu.querySelectorAll('.band');
+    bEls.forEach((b, i2) => {
+      b.querySelector('i').style.width = sum ? Math.round((bands[i2] / sum) * 100) + '%' : '0%';
+      b.querySelector('.bn').textContent = `${BAND_LABELS[i2]} ${bands[i2]}`;
+    });
+    menu.querySelectorAll('.seg button').forEach((b) => b.classList.toggle('on', +b.dataset.th === th));
+    const learn = q('.learn');
+    learn.style.display = mKeys.length ? '' : 'none';
+    if (mKeys.length) q('.lv').textContent = `裁决 ${mCount} 次 · ${mKeys.slice(0, 2).map((k) => `${k.length > 9 ? k.slice(0, 9) + '…' : k} ×${ms[k]}`).join(' · ')}`;
+    q('.rc').textContent = allRemoved.length ? `${allRemoved.length} 条` : '';
     const recentHtml = recent.length
       ? recent
           .map(
@@ -332,24 +376,21 @@
           )
           .join('')
       : '<div class="empty">本页还没有隐藏过评论</div>';
-    menu.innerHTML = `
-<div class="hd"><b>清扫台</b><small>v${esc(ver())}</small><button class="x" data-a="close" title="关闭菜单" aria-label="关闭菜单">×</button></div>
-<div class="st"><strong>${n}</strong><span>条已清 · 扫描 ${s.accounts || 0} 账号</span></div>
-<div class="bands">${bandHtml}</div>
-<div class="actions">
-  <button class="action" data-a="clear">${DFY.icon('broom', 16, 2.2)}<span>清扫本页</span></button>
-  <button class="action secondary" data-a="box">${DFY.icon('frame', 16, 2)}<span>框选屏蔽</span></button>
-</div>
-<div class="field"><span class="field-label">灵敏度</span><div class="seg">${PRESETS.map((p) => `<button data-th="${p.t}" class="${th === p.t ? 'on' : ''}" title="判定阈值 ${p.t}%">${p.label}</button>`).join('')}</div></div>
-${mKeys.length ? `<div class="learn"><span class="lt">人工强化</span><span class="lv">裁决 ${mCount} 次 · ${mKeys.slice(0, 2).map((k) => `${k.length > 9 ? k.slice(0, 9) + '…' : k} ×${ms[k]}`).join(' · ')}</span></div>` : ''}
-<div class="recent"><div class="recent-hd"><span>最近隐藏</span><button data-a="all" title="在设置页查看全部记录">全部记录 ↗</button></div>${recentHtml}</div>
-<div class="tools">
-  <button class="tool" data-a="rescan" title="重新扫描本页">${DFY.icon('search', 16, 2)}</button>
-  <button class="tool ${showCount ? 'on' : ''}" data-a="count" title="已清计数条：${showCount ? '开（点击关闭）' : '关（点击开启）'}">${DFY.icon('report', 16, 2)}</button>
-  <button class="tool ${!enabled ? 'on' : ''}" data-a="toggle" title="${enabled ? '暂停屏蔽' : '恢复屏蔽'}">${DFY.icon(enabled ? 'pause' : 'play', 16, 2)}</button>
-  <button class="tool" data-a="cfg" title="打开设置面板">${DFY.icon('gear', 16, 2)}</button>
-  <button class="tool end" data-a="hidebubble" title="收起悬浮台（设置里可再开）">${DFY.icon('minus', 16, 2)}</button>
-</div>`;
+    const rlist = q('.rlist');
+    if (rlist.dataset.v !== recentHtml) {
+      rlist.dataset.v = recentHtml;
+      rlist.innerHTML = recentHtml;
+    }
+    const tCount = q('[data-a="count"]');
+    const tToggle = q('[data-a="toggle"]');
+    tCount.classList.toggle('on', showCount);
+    tCount.title = `已清计数条：${showCount ? '开（点击关闭）' : '关（点击开启）'}`;
+    tToggle.classList.toggle('on', !enabled);
+    tToggle.title = enabled ? '暂停屏蔽' : '恢复屏蔽';
+    if (tToggle.dataset.v !== String(enabled)) {
+      tToggle.dataset.v = String(enabled);
+      tToggle.innerHTML = DFY.icon(enabled ? 'pause' : 'play', 16, 2);
+    }
     requestAnimationFrame(positionMenu); // 内容变化后重新钳制视口
   }
 

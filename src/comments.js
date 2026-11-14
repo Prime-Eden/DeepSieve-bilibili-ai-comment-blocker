@@ -197,6 +197,11 @@
 .dfy-sus .ds{font-style:normal;font-size:9px;font-weight:800;line-height:14px;padding:0 4px;border-radius:4px;background:#3d5bd6;color:#fff}
 .dfy-sus .ks{border:0;background:#c2455a;color:#fff;font:700 9.5px/15px -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;padding:0 6px;border-radius:4px;cursor:pointer}
 .dfy-sus .ks:hover{background:#a83548}
+.dfy-blk{display:none;margin-left:6px;padding:1px 8px;border-radius:4px;background:#c2455a;color:#fff;font:700 10.5px/1.8 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;cursor:pointer;border:none;vertical-align:middle}
+.dfy-blk:hover{background:#a83548}
+.dfy-blk.undo{background:#2546b8}
+.dfy-blk.undo:hover{background:#1d3a9c}
+:host(:hover) .dfy-blk{display:inline-block}
 `;
   let susTip = null;
   function susTipShow(anchor, a) {
@@ -248,6 +253,23 @@
     },
     true
   );
+  // 悬停「拉黑」按钮：拉黑（带撤销窗口）或撤销——捕获阶段拦截，走后台队列
+  document.addEventListener(
+    'click',
+    (e) => {
+      const path = e.composedPath ? e.composedPath() : [];
+      const blk = path.find((n) => n.nodeType === 1 && n.classList && n.classList.contains('dfy-blk'));
+      if (!blk) return;
+      e.stopPropagation();
+      e.preventDefault();
+      const mid = blk.getAttribute('data-dfy-blk');
+      if (!mid) return;
+      if (blk.classList.contains('undo')) undoBlock(mid);
+      else blockMids([mid], 99, { grace: true });
+      susTipHide();
+    },
+    true
+  );
   // 徽标上的「清理」：捕获阶段拦截（阻止 B 站把点击当评论交互），走后台队列拉黑
   document.addEventListener(
     'click',
@@ -266,8 +288,17 @@
     true
   );
 
+  // 手动拉黑的 5 秒撤销窗口：期间评论暂缓隐藏（按钮保持「撤销」态），过期由定时器触发隐藏
+  const grace = new Map(); // mid -> 过期时间戳
+  function inGrace(mid) {
+    const e = grace.get(String(mid));
+    if (e && Date.now() < e) return e;
+    grace.delete(String(mid));
+    return 0;
+  }
+
   /** 手动拉黑（框选/徽标清理共用）：名单写入走后台队列，judge 后 doRender 自动隐藏/计数/记录 */
-  async function blockMids(mids, score) {
+  async function blockMids(mids, score, opts = {}) {
     const list = [...mids].filter((mid) => !DFY.lists.white[mid]);
     if (!list.length) return 0;
     const entries = {};
@@ -294,31 +325,73 @@
     // 即时反馈：手动裁决被看见（悬浮台闪现强化提示；菜单开着时菜单数字即反馈）
     if (DFY.bubble && DFY.bubble.flash) {
       const kinds = Object.keys(stats).length;
-      DFY.bubble.flash(list.length > 1 ? `已拉黑 ${list.length} 个账号 · 特征强化 ${kinds} 类` : `已拉黑 · 特征强化 +${kinds || 1}`);
+      DFY.bubble.flash(opts.grace ? `已拉黑（5 秒内可撤销）· 特征强化 ${kinds} 类` : list.length > 1 ? `已拉黑 ${list.length} 个账号 · 特征强化 ${kinds} 类` : `已拉黑 · 特征强化 +${kinds || 1}`);
+    }
+    if (opts.grace) {
+      for (const mid of list) grace.set(mid, Date.now() + 5000);
+      setTimeout(() => {
+        for (const mid of list) grace.delete(mid);
+        C.render(); // 撤销窗口结束：真正隐藏 + 计数 + 记录
+      }, 5300);
     }
     return list.length;
   }
 
-  /** 可见元素上的疑似徽标同步：suspect 挂/更新，其余摘除 */
+  /** 撤销一次手动拉黑：移出名单 + 恢复原评分，评论立即回来 */
+  async function undoBlock(mid) {
+    mid = String(mid || '');
+    grace.delete(mid);
+    if (DFY.callBg) await DFY.callBg({ type: 'bl-del', mid });
+    delete DFY.lists.block[mid];
+    const a = accounts.get(mid);
+    if (a) judge(a);
+    C.render();
+    if (DFY.bubble && DFY.bubble.flash) DFY.bubble.flash('已撤销拉黑');
+  }
+
+  let blockBtnActive = false; // 一键拉黑按钮当前是否启用（三档设置 + 自动档实时计算）
+  /** 可见元素上的徽标同步：suspect 徽标挂/更新 + 一键拉黑按钮（三档设置控制） */
   function syncSuspect(host, a) {
     if (!host || !host.shadowRoot) return;
     const root = host.shadowRoot;
     const isSus = !!(a && a.verdict && a.verdict.level === 'suspect');
+    const info = root.querySelector('bili-comment-user-info');
     let badge = root.querySelector('.dfy-sus');
-    if (!isSus) {
-      if (badge) badge.remove();
-      return;
-    }
-    if (!badge) {
-      const info = root.querySelector('bili-comment-user-info');
-      if (!info) return;
-      badge = document.createElement('span');
-      badge.className = 'dfy-sus';
+    if (!isSus && badge) badge.remove();
+    if (!info) return;
+    if (!root.querySelector('style[data-dfy-sus]')) {
       const st = document.createElement('style');
       st.setAttribute('data-dfy-sus', '');
       st.textContent = SUS_CSS;
       root.appendChild(st);
-      info.after(badge);
+    }
+    // 一键拉黑按钮：悬停评论浮出（纯 CSS），三档设置控制是否插入
+    let btn = root.querySelector('.dfy-blk');
+    const wantBtn = blockBtnActive && a && a.acc && a.acc.mid;
+    if (!wantBtn) {
+      if (btn) btn.remove();
+    } else {
+      if (!btn) {
+        btn = document.createElement('button');
+        btn.className = 'dfy-blk';
+        (badge || info).after(btn);
+      }
+      btn.setAttribute('data-dfy-blk', a.acc.mid);
+      const undoing = grace.has(String(a.acc.mid));
+      btn.classList.toggle('undo', undoing);
+      btn.title = undoing ? '撤销这次拉黑' : '立即拉黑该账号（5 秒内可撤销，可在名单页恢复）';
+      const html = undoing ? '撤销' : '拉黑';
+      if (btn.dataset.v !== html) {
+        btn.dataset.v = html;
+        btn.textContent = html;
+      }
+    }
+    // 疑似徽标
+    if (!isSus) return;
+    if (!badge) {
+      badge = document.createElement('span');
+      badge.className = 'dfy-sus';
+      (btn || info).after(badge);
     }
     badge.setAttribute('data-dfy-sus', a.acc.mid);
     const html = `可疑 <b>${a.verdict.score}%</b>${a.llm ? '<i class="ds">DS</i>' : ''}<button class="ks" title="立即拉黑该账号（可在名单页恢复）">清理</button>`;
@@ -489,6 +562,13 @@
     if (!DFY.settings || !DFY.settings.enabled) return;
     const policy = DFY.settings.subPolicy || 'fish';
     const toBlock = new Set();
+    // 一键拉黑按钮启用态：on 常开 / off 关闭 / auto 按上下文（AI 话题视频或本页判鱼比例 ≥15%）
+    const mode = DFY.settings.blockBtn || 'auto';
+    if (mode === 'auto') {
+      let fishN = 0;
+      for (const a of accounts.values()) if (a.verdict && DFY.levelOf(a.verdict.score, DFY.settings.threshold) === 'fish') fishN++;
+      blockBtnActive = aiTopic || (accounts.size >= 8 && fishN / accounts.size >= 0.15);
+    } else blockBtnActive = mode === 'on';
     eachThread((th) => {
       const rootId = th.getAttribute('data-dfy-rpid');
       const rootIt = rootId && items.get(rootId);
@@ -507,8 +587,9 @@
       const anyReplyFish = reps.some((x) => x.fish);
 
       if (policy === 'thread' || policy === 'ignore') {
-        // 整楼 / 只看主楼：命中时整个线程元素隐藏，一次记 1 + 楼中楼总数
-        if (rootFish || (policy === 'thread' && anyReplyFish)) {
+        // 整楼 / 只看主楼：命中时整个线程元素隐藏，一次记 1 + 楼中楼总数（撤销窗口内暂缓）
+        const rootGraced = rootAcc && inGrace(rootAcc.acc.mid);
+        if ((rootFish || (policy === 'thread' && anyReplyFish)) && !rootGraced) {
           // data-dfy-pre = 主世界已在绘制前隐藏过，这里只补记账
           if ((hideEl(th) || th.hasAttribute('data-dfy-pre')) && !threadCounted.has(rootId)) {
             threadCounted.add(rootId);
@@ -535,7 +616,13 @@
       showEl(th);
       const cr = rootElOf(th);
       if (rootFish) {
-        if ((hideEl(cr) || th.hasAttribute('data-dfy-pre')) && !countedEls.has(rootId)) {
+        if (rootAcc && inGrace(rootAcc.acc.mid)) {
+          // 撤销窗口内：暂缓隐藏，按钮保持「撤销」态
+          th.removeAttribute('data-dfy-pre');
+          showEl(cr);
+          syncSuspect(cr, rootAcc);
+          countedEls.delete(rootId);
+        } else if ((hideEl(cr) || th.hasAttribute('data-dfy-pre')) && !countedEls.has(rootId)) {
           countedEls.add(rootId);
           DFY.counter.add(1, 0);
           const feats = featsOf(rootAcc);
@@ -549,7 +636,13 @@
       }
       for (const x of reps) {
         if (x.fish) {
-          if ((hideEl(x.el) || x.el.hasAttribute('data-dfy-pre')) && !countedEls.has(x.id)) {
+          const graced = x.a && inGrace(x.a.acc.mid);
+          if (graced) {
+            x.el.removeAttribute('data-dfy-pre');
+            showEl(x.el);
+            syncSuspect(x.el, x.a);
+            countedEls.delete(x.id);
+          } else if ((hideEl(x.el) || x.el.hasAttribute('data-dfy-pre')) && !countedEls.has(x.id)) {
             countedEls.add(x.id);
             DFY.counter.add(0, 1);
             const feats = featsOf(x.a);

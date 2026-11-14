@@ -5,7 +5,7 @@
   const DFY = (globalThis.DFY = globalThis.DFY || {});
 
   const CSS = `
-.b{margin:6px 0 2px;display:inline-block;padding:4px 10px;border-radius:6px;
+.b{margin:6px 0 2px;display:inline-block;padding:4px 10px;border-radius:12px;
   font:500 12.5px/1.6 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;
   color:#6b7280;background:rgba(0,0,0,.045);user-select:none}
 .b.dk{color:#9a9aa6;background:rgba(255,255,255,.08)}`;
