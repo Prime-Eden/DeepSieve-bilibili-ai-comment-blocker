@@ -597,7 +597,7 @@
     if (mode === 'auto') {
       let fishN = 0;
       for (const a of accounts.values()) if (a.verdict && DFY.levelOf(a.verdict.score, DFY.settings.threshold) === 'fish') fishN++;
-      blockBtnActive = aiTopic || (accounts.size >= 8 && fishN / accounts.size >= 0.15);
+      blockBtnActive = aiTopic || fishN >= 1; // 放宽：本页出现过判鱼即启用（原 15% 比例太紧，导致「停留无反应」）
     } else blockBtnActive = mode === 'on';
     eachThread((th) => {
       const rootId = th.getAttribute('data-dfy-rpid');
