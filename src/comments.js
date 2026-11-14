@@ -198,10 +198,10 @@
 .dfy-sus .ks{border:0;background:#c2455a;color:#fff;font:700 9.5px/15px -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;padding:0 6px;border-radius:4px;cursor:pointer}
 .dfy-sus .ks:hover{background:#a83548}
 .dfy-blk{display:none;margin-left:6px;padding:1px 8px;border-radius:4px;background:#c2455a;color:#fff;font:700 10.5px/1.8 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;cursor:pointer;border:none;vertical-align:middle}
+.dfy-blk.show{display:inline-block}
 .dfy-blk:hover{background:#a83548}
 .dfy-blk.undo{background:#2546b8}
 .dfy-blk.undo:hover{background:#1d3a9c}
-:host(:hover) .dfy-blk{display:inline-block}
 `;
   let susTip = null;
   function susTipShow(anchor, a) {
@@ -253,6 +253,36 @@
     },
     true
   );
+  // 悬停评论满 1 秒才显示「拉黑」按钮（防止划过误触；纯 JS 计时，单定时器）
+  let hbTimer = 0;
+  const HB_HOST = (path) => path.find((n) => n.nodeType === 1 && n.shadowRoot && n.shadowRoot.querySelector('.dfy-blk'));
+  document.addEventListener(
+    'mouseover',
+    (e) => {
+      const path = e.composedPath ? e.composedPath() : [];
+      const host = HB_HOST(path);
+      clearTimeout(hbTimer);
+      if (!host) return;
+      hbTimer = setTimeout(() => {
+        const b = host.shadowRoot && host.shadowRoot.querySelector('.dfy-blk');
+        if (b) b.classList.add('show');
+      }, 1000);
+    },
+    true
+  );
+  document.addEventListener(
+    'mouseout',
+    (e) => {
+      clearTimeout(hbTimer);
+      const path = e.composedPath ? e.composedPath() : [];
+      const host = HB_HOST(path);
+      if (host) {
+        const b = host.shadowRoot && host.shadowRoot.querySelector('.dfy-blk.show');
+        if (b) b.classList.remove('show');
+      }
+    },
+    true
+  );
   // 悬停「拉黑」按钮：拉黑（带撤销窗口）或撤销——捕获阶段拦截，走后台队列
   document.addEventListener(
     'click',
@@ -288,7 +318,7 @@
     true
   );
 
-  // 手动拉黑的 5 秒撤销窗口：期间评论暂缓隐藏（按钮保持「撤销」态），过期由定时器触发隐藏
+  // 手动拉黑的 3 秒撤销窗口：期间评论暂缓隐藏（按钮保持「撤销」态），过期由定时器触发隐藏
   const grace = new Map(); // mid -> 过期时间戳
   function inGrace(mid) {
     const e = grace.get(String(mid));
@@ -325,14 +355,14 @@
     // 即时反馈：手动裁决被看见（悬浮台闪现强化提示；菜单开着时菜单数字即反馈）
     if (DFY.bubble && DFY.bubble.flash) {
       const kinds = Object.keys(stats).length;
-      DFY.bubble.flash(opts.grace ? `已拉黑（5 秒内可撤销）· 特征强化 ${kinds} 类` : list.length > 1 ? `已拉黑 ${list.length} 个账号 · 特征强化 ${kinds} 类` : `已拉黑 · 特征强化 +${kinds || 1}`);
+      DFY.bubble.flash(opts.grace ? `已拉黑（3 秒内可撤销）· 特征强化 ${kinds} 类` : list.length > 1 ? `已拉黑 ${list.length} 个账号 · 特征强化 ${kinds} 类` : `已拉黑 · 特征强化 +${kinds || 1}`);
     }
     if (opts.grace) {
-      for (const mid of list) grace.set(mid, Date.now() + 5000);
+      for (const mid of list) grace.set(mid, Date.now() + 3000);
       setTimeout(() => {
         for (const mid of list) grace.delete(mid);
         C.render(); // 撤销窗口结束：真正隐藏 + 计数 + 记录
-      }, 5300);
+      }, 3300);
     }
     return list.length;
   }
@@ -379,7 +409,7 @@
       btn.setAttribute('data-dfy-blk', a.acc.mid);
       const undoing = grace.has(String(a.acc.mid));
       btn.classList.toggle('undo', undoing);
-      btn.title = undoing ? '撤销这次拉黑' : '立即拉黑该账号（5 秒内可撤销，可在名单页恢复）';
+      btn.title = undoing ? '撤销这次拉黑' : '立即拉黑该账号（3 秒内可撤销，可在名单页恢复）';
       const html = undoing ? '撤销' : '拉黑';
       if (btn.dataset.v !== html) {
         btn.dataset.v = html;

@@ -16,7 +16,7 @@
 .wrap.dock-r:hover .dot,.wrap.dock-r.open .dot{transform:none}
 .wrap .dot.dragging{transform:scale(1.08)}
 @media (prefers-reduced-motion: reduce){.menu.on{animation:none}.dot,.flash,.menu{transition:none!important}.dot.dragging{transform:none}}
-.wrap.below{flex-direction:column-reverse}
+.wrap.below .menu{bottom:auto;top:calc(100% + 10px)}
 .dot{position:relative;width:42px;height:42px;border-radius:50%;background:#2546b8;color:#fff;display:flex;align-items:center;justify-content:center;cursor:grab;box-shadow:0 0 0 2px rgba(255,255,255,.92),0 6px 20px rgba(0,0,0,.42);border:none;touch-action:none;user-select:none;transition:transform .12s ease,background .15s ease}
 .dot:hover{background:#1d3a9c}
 .dot:active{cursor:grabbing}
@@ -28,6 +28,7 @@
 .hint-bubble{position:absolute;right:0;bottom:calc(100% + 12px);white-space:nowrap;padding:8px 13px;border-radius:10px;background:#1f2329;color:#fff;font:500 12.5px/1.5 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;box-shadow:0 8px 24px rgba(0,0,0,.35);pointer-events:none;transition:opacity .2s}
 .hint-bubble b{color:#8fd3ff;font-weight:700;margin-right:6px}
 .wrap.below .hint-bubble{bottom:auto;top:calc(100% + 12px)}
+.wrap.left-ex .hint-bubble{right:auto;left:0}
 .flash{position:absolute;right:0;bottom:calc(100% + 12px);white-space:nowrap;padding:7px 12px;border-radius:9px;background:#1f2329;color:#8fe3b0;font:600 12px/1.5 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;box-shadow:0 8px 24px rgba(0,0,0,.35);pointer-events:none;opacity:0;transition:opacity .2s}
 .flash.on{opacity:1}
 .wrap.below .flash{bottom:auto;top:calc(100% + 12px)}
@@ -40,7 +41,9 @@
 @keyframes dfypop{from{opacity:0;translate:0 4px}to{opacity:1;translate:0 0}}
 .sec input{accent-color:#2546b8;cursor:pointer;margin:0}
 .sec label{display:flex;align-items:center;gap:4px;cursor:pointer;letter-spacing:0}
-.menu{width:258px;padding:12px;border-radius:16px;background:#fff;border:1px solid rgba(0,0,0,.08);box-shadow:0 18px 44px -16px rgba(0,0,0,.36);color:#1f2329}
+.wrap.left-ex .menu{right:auto;left:0}
+.wrap.left-ex .flash{right:auto;left:0}
+.menu{position:absolute;right:0;bottom:calc(100% + 10px);width:258px;padding:12px;border-radius:16px;background:#fff;border:1px solid rgba(0,0,0,.08);box-shadow:0 18px 44px -16px rgba(0,0,0,.36);color:#1f2329}
 .dk .menu{background:#26262c;border-color:rgba(255,255,255,.12);color:#f0f0f4}
 .hd{display:flex;align-items:center;gap:6px;margin-bottom:10px}
 .hd b{font-size:14px;font-weight:700;letter-spacing:.02em}
@@ -123,6 +126,7 @@
     wrap.style.top = pos.y + 'px';
     wrap.classList.toggle('below', pos.y < 340); // 顶部空间不足时菜单翻到按钮下方
     // 贴边吸附：靠左右边缘时圆钮半收进屏幕，悬停或菜单打开时弹出（位置数据不变，纯渲染态）
+    wrap.classList.toggle('left-ex', pos.x < 258 + MARGIN + 12);
     wrap.classList.toggle('dock-l', pos.x <= MARGIN + 4);
     wrap.classList.toggle('dock-r', pos.x >= window.innerWidth - SIZE - MARGIN - 4);
   }
