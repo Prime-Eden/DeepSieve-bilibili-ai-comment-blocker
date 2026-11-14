@@ -277,7 +277,9 @@
       const acc = a ? a.acc : null;
       entries[mid] = { n: acc ? acc.uname : '', a: acc ? acc.avatar : '', t: Date.now(), s: score == null ? (a && a.verdict ? a.verdict.score : 0) : score };
       const rs = (a && a.verdict && a.verdict.reasons) || [];
-      for (const r of rs) if (r.w > 0 && r.why && r.tag !== 'manual') stats[r.why] = (stats[r.why] || 0) + 1;
+      // 基础比例校准：Lv/头像/号段这类账号静态特征几乎人人有份，学了只会推高误杀；只学文本与行为特征
+      const skip = new Set(['manual', 'level', 'avatar', 'mid']);
+      for (const r of rs) if (r.w > 0 && r.why && !skip.has(r.tag)) stats[r.why] = (stats[r.why] || 0) + 1;
     }
     if (DFY.callBg) {
       await DFY.callBg({ type: 'bl-add', entries });

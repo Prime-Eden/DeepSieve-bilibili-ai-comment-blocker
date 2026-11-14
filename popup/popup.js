@@ -208,7 +208,7 @@
   }
   $('rb-export').onclick = () => {
     if (!lastRemoved.length) return;
-    const data = { app: 'dafeiyu-clean', exported: new Date().toISOString(), removed: lastRemoved };
+    const data = { app: 'DeepSieve', exported: new Date().toISOString(), removed: lastRemoved.map(({ id, ...r }) => r) };
     const url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 1)], { type: 'application/json' }));
     const a = document.createElement('a');
     a.href = url;
@@ -238,7 +238,7 @@
   }
   $('rba-export').onclick = () => {
     if (!lastAll.length) return;
-    const data = { app: 'dafeiyu-clean', type: 'removed-all', exported: new Date().toISOString(), removed: lastAll };
+    const data = { app: 'DeepSieve', type: 'removed-all', exported: new Date().toISOString(), removed: lastAll.map(({ id, ...r }) => r) };
     const url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 1)], { type: 'application/json' }));
     const a = document.createElement('a');
     a.href = url;
@@ -301,11 +301,27 @@
       const consent = id === 'llmEnabled' && S.settings.llmEnabled && askConsent();
       if (consent)
         consent.then(
-          (ok) => {
-            if (ok) return;
-            S.settings.llmEnabled = false;
-            $(id).checked = false;
-            save();
+          async (ok) => {
+            if (!ok) {
+              S.settings.llmEnabled = false;
+              $(id).checked = false;
+              save();
+              return;
+            }
+            // 域名权限按需申请（optional_host_permissions）：拒绝则回滚精判开关
+            if (chrome.permissions && chrome.permissions.request) {
+              try {
+                const granted = await chrome.permissions.request({ origins: ['https://api.deepseek.com/*'] });
+                if (!granted) {
+                  S.settings.llmEnabled = false;
+                  $(id).checked = false;
+                  save();
+                  note('未授予 api.deepseek.com 域名权限，精判保持关闭', false);
+                }
+              } catch (e) {
+                /* 旧版内核不支持按需申请，保持开启；首次精判失败会在测试连接里提示 */
+              }
+            }
           },
           () => {}
         );
@@ -427,7 +443,7 @@
   };
   $('word-export').onclick = () => {
     if (!(S.customWords || []).length) return note('还没有屏蔽词可导出', false);
-    const data = { app: 'dafeiyu-clean', type: 'custom-words', words: S.customWords };
+    const data = { app: 'DeepSieve', type: 'custom-words', words: S.customWords };
     const url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 1)], { type: 'application/json' }));
     const a = document.createElement('a');
     a.href = url;

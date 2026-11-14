@@ -22,6 +22,7 @@
 
   const [st] = await Promise.all([DFY.store.get(['settings', 'blocklist', 'whitelist', 'customWords', 'manualStats']), DFY.memory.load()]);
   DFY.settings = st.settings;
+  DFY.settings.llmKey = DFY.settings.llmKey ? 'configured' : ''; // 真实密钥不出内容脚本（精判请求全部经后台）
   DFY.lists = { block: st.blocklist, white: st.whitelist };
   DFY.customWords = st.customWords || [];
   DFY.compileWords(DFY.customWords);
@@ -36,13 +37,13 @@
         source: 'dfy-iso',
         type: 'rules',
         rules: { e: !!DFY.settings.enabled, b: Object.keys(DFY.lists.block || {}), w: Object.keys(DFY.lists.white || {}), words: DFY.customWords || [], p: (DFY.settings && DFY.settings.subPolicy) || 'fish' },
-      }, '*');
+      }, location.origin);
     } catch (e) {}
   }
   broadcastRules();
   DFY.bubble.sync();
   // 通知主世界：内容脚本已就绪，回放它在加载完成前缓冲的拦截事件（首屏早于 document_idle 的场景）
-  window.postMessage({ source: 'dfy-iso', type: 'ready' }, '*');
+  window.postMessage({ source: 'dfy-iso', type: 'ready' }, location.origin);
 
   DFY.store.onChange((ch) => {
     if (ch.settings) {
@@ -65,7 +66,8 @@
     if ('seen' in ch) DFY.memory.seen = ch.seen || {};
     if ('llmCache' in ch) DFY.memory.llm = ch.llmCache || {};
     if (ch.blocklist || ch.whitelist) DFY.comments.rejudgeAll();
-    broadcastRules(); // 规则变更仍需每次广播给主世界拦截层；悬浮台可见性只在设置变化时同步（见上）
+    // 只有规则相关变更（名单/屏蔽词/设置）才全量下发；日志、前科、统计等高频写入不再触发
+    if (ch.blocklist || ch.whitelist || ch.customWords || ch.settings) broadcastRules();
   });
 
   // popup / 快捷键
@@ -83,7 +85,7 @@
 
   if (!DFY.settings.enabled) return;
   // 设置加载前主世界可能已经送来过评论，让它重新送一次
-  window.postMessage({ source: 'dfy-iso', type: 'rescan' }, '*');
+  window.postMessage({ source: 'dfy-iso', type: 'rescan' }, location.origin);
 
   // 空间主页鉴定（B 站空间是单页应用，路由变化时重新鉴定）
   let lastMid = '';

@@ -16,7 +16,7 @@
       llmKey: '',
       llmModel: 'deepseek-flash',
       llmAuto: true, // 自动精判可疑账号
-      llmVision: true, // 让 DeepSeek 看头像
+      llmVision: false, // 让 DeepSeek 看头像（默认关，用户显式开启）
     },
     customWords: [], // 自定义屏蔽词：评论命中任意一个词，该账号直接判为大肥鱼
     stats: { total: 0, today: 0, day: '', llmCalls: 0, verdicts: 0 },

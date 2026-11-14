@@ -143,6 +143,36 @@ button.danger:hover{background:#c9455a}
     card.className = 'c';
     root.appendChild(card);
     (document.body || document.documentElement).appendChild(host);
+    // 绑定卡片点击（原在顶层执行时 card=null，整个空间鉴定模块加载即崩）
+    card.addEventListener('click', async (e) => {
+      const a = e.target.closest('[data-a]');
+      if (!a || !current) return;
+      const act = a.dataset.a;
+      const p = current.prof;
+      if (act === 'close') {
+        card.style.display = 'none';
+      } else if (act === 'block') {
+        if (DFY.callBg) await DFY.callBg({ type: 'bl-promote', mid: p.mid, name: p.uname, avatar: p.avatar, score: current.score });
+        DFY.lists.block[p.mid] = { t: Date.now() };
+        delete DFY.lists.white[p.mid];
+        current.score = Math.max(current.score, 99);
+        render(current);
+      } else if (act === 'unblock') {
+        if (DFY.callBg) await DFY.callBg({ type: 'bl-del', mid: p.mid });
+        delete DFY.lists.block[p.mid];
+        render(current);
+      } else if (act === 'white') {
+        if (DFY.callBg) await DFY.callBg({ type: 'wl-promote', mid: p.mid, name: p.uname });
+        DFY.lists.white[p.mid] = { n: p.uname };
+        current.score = 0;
+        current.reasons.unshift({ w: -99, why: '你标记过这位是人类' });
+        render(current);
+      } else if (act === 'llm') {
+        S.llm(current);
+      } else if (act === 'cfg') {
+        DFY.callBg({ type: 'open-options' });
+      }
+    });;
   }
 
   function levelInfo(score) {
@@ -189,35 +219,6 @@ ${llm}
     card.style.display = '';
   }
 
-  card.addEventListener('click', async (e) => {
-    const a = e.target.closest('[data-a]');
-    if (!a || !current) return;
-    const act = a.dataset.a;
-    const p = current.prof;
-    if (act === 'close') {
-      card.style.display = 'none';
-    } else if (act === 'block') {
-      if (DFY.callBg) await DFY.callBg({ type: 'bl-promote', mid: p.mid, name: p.uname, avatar: p.avatar, score: current.score });
-      DFY.lists.block[p.mid] = { t: Date.now() };
-      delete DFY.lists.white[p.mid];
-      current.score = Math.max(current.score, 99);
-      render(current);
-    } else if (act === 'unblock') {
-      if (DFY.callBg) await DFY.callBg({ type: 'bl-del', mid: p.mid });
-      delete DFY.lists.block[p.mid];
-      render(current);
-    } else if (act === 'white') {
-      if (DFY.callBg) await DFY.callBg({ type: 'wl-promote', mid: p.mid, name: p.uname });
-      DFY.lists.white[p.mid] = { n: p.uname };
-      current.score = 0;
-      current.reasons.unshift({ w: -99, why: '你标记过这位是人类' });
-      render(current);
-    } else if (act === 'llm') {
-      S.llm(current);
-    } else if (act === 'cfg') {
-      DFY.callBg({ type: 'open-options' });
-    }
-  });
 
   S.llm = async function (r) {
     render(r, { llmLoading: true });
