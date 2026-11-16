@@ -197,14 +197,6 @@
 .dfy-sus .ds{font-style:normal;font-size:9px;font-weight:700;line-height:14px;padding:0 4px;border-radius:4px;background:rgba(61,91,214,.18);color:#5a78e6}
 .dfy-sus .ks{border:0;background:transparent;color:inherit;opacity:.72;font:600 10.5px/16px -apple-system,BlinkMacSystemFont,\"PingFang SC\",\"Microsoft YaHei\",sans-serif;padding:0 7px;border-radius:999px;cursor:pointer;transition:background .12s ease,opacity .12s ease,color .12s ease}
 .dfy-sus .ks:hover{background:#c2455a;color:#fff;opacity:1}
-.dfy-blk{position:relative;display:inline-block;max-width:0;height:20px;padding:0;margin-left:0;opacity:0;overflow:hidden;white-space:nowrap;border-radius:999px;background:rgba(150,150,165,.16);color:inherit;font:600 11px/20px -apple-system,BlinkMacSystemFont,\"PingFang SC\",\"Microsoft YaHei\",sans-serif;cursor:pointer;border:none;vertical-align:middle;pointer-events:none;transition:max-width .18s ease 1s,opacity .18s ease 1s,padding .18s ease 1s,margin-left .18s ease 1s,background .12s ease,color .12s ease}
-.dfy-blk.show,:host(:hover) .dfy-blk{max-width:80px;padding:0 10px;margin-left:6px;opacity:1;pointer-events:auto;transition-delay:0s}
-.dfy-blk:hover{background:#c2455a;color:#fff}
-.dfy-blk.undo{background:#2546b8;color:#fff}
-.dfy-blk.undo:hover{background:#1d3a9c}
-.dfy-blk.undo::after{content:"";position:absolute;left:0;bottom:0;height:2px;width:100%;background:rgba(255,255,255,.75);transform-origin:left;animation:dfyburn 3s linear forwards}
-@keyframes dfyburn{from{transform:scaleX(1)}to{transform:scaleX(0)}}
-@media (prefers-reduced-motion: reduce){.dfy-blk.undo::after{animation:none;display:none}}
 `;
   let susTip = null;
   function susTipShow(anchor, a) {
@@ -235,44 +227,6 @@
   function susTipHide() {
     if (susTip) susTip.style.display = 'none';
   }
-  // 事件委托：shadow DOM 里的 hover 用 composedPath 捕获，tooltip 全页单例
-  document.addEventListener(
-    'mouseover',
-    (e) => {
-      const path = e.composedPath ? e.composedPath() : [];
-      const t = path.find((n) => n.nodeType === 1 && n.hasAttribute && n.hasAttribute('data-dfy-sus'));
-      if (!t) return;
-      const a = accounts.get(t.getAttribute('data-dfy-sus'));
-      if (a && a.verdict) susTipShow(t, a);
-    },
-    true
-  );
-  document.addEventListener(
-    'mouseout',
-    (e) => {
-      if (!susTip || susTip.style.display !== 'block') return;
-      const path = e.composedPath ? e.composedPath() : [];
-      if (path.some((n) => n.nodeType === 1 && n.hasAttribute && n.hasAttribute('data-dfy-sus'))) susTipHide();
-    },
-    true
-  );
-  // 悬停「拉黑」按钮：拉黑（带撤销窗口）或撤销——捕获阶段拦截，走后台队列
-  document.addEventListener(
-    'click',
-    (e) => {
-      const path = e.composedPath ? e.composedPath() : [];
-      const blk = path.find((n) => n.nodeType === 1 && n.classList && n.classList.contains('dfy-blk'));
-      if (!blk) return;
-      e.stopPropagation();
-      e.preventDefault();
-      const mid = blk.getAttribute('data-dfy-blk');
-      if (!mid) return;
-      if (blk.classList.contains('undo')) undoBlock(mid);
-      else blockMids([mid], 99, { grace: true });
-      susTipHide();
-    },
-    true
-  );
   // 徽标上的「清理」：捕获阶段拦截（阻止 B 站把点击当评论交互），走后台队列拉黑
   document.addEventListener(
     'click',
@@ -299,6 +253,227 @@
     grace.delete(String(mid));
     return 0;
   }
+
+  /* ---------------- 悬停「拉黑」按钮（全页单例，脚本驱动） ----------------
+   * 旧做法把按钮塞进 B 站评论的 shadow DOM，靠 CSS :host(:hover) + 过渡延迟显隐：
+   *   ① 自动档要求「AI 话题或本页已出现判鱼」才插入，多数视频根本没有按钮；
+   *   ② B 站组件重绘会把外来节点冲掉，而我们只在新数据到来时才补回；
+   *   ③ 靠 CSS 过渡延迟计时，被重绘 / 悬停抖动打断后不再触发。
+   * 现在：事件委托识别鼠标所在评论 → 停留 DWELL 毫秒 → 在昵称行右侧浮出全页唯一的按钮，
+   * 位置每次现算，不依赖任何注入到评论里的节点。 */
+  const BLK_DWELL = { auto: 1000, on: 0 }; // 自动：停留 1 秒；常开：立即
+  const BLK_CSS = `
+:host{all:initial}
+.b{box-sizing:border-box;height:22px;padding:0 11px;border:1px solid rgba(16,24,40,.12);border-radius:999px;background:rgba(255,255,255,.97);color:#475467;font:600 11.5px/20px -apple-system,BlinkMacSystemFont,\"PingFang SC\",\"Microsoft YaHei\",sans-serif;cursor:pointer;white-space:nowrap;position:relative;overflow:hidden;box-shadow:0 2px 8px rgba(16,24,40,.14);animation:in .12s ease-out;transition:background .12s,color .12s,border-color .12s}
+.b.dk{background:rgba(38,40,48,.97);border-color:rgba(255,255,255,.16);color:#d0d5dd}
+.b:hover{background:#c2455a;border-color:#c2455a;color:#fff}
+.b.undo,.b.undo.dk{background:#2546b8;border-color:#2546b8;color:#fff}
+.b.undo:hover{background:#1d3a9c;border-color:#1d3a9c}
+.b.undo::after{content:"";position:absolute;left:0;bottom:0;height:2px;width:100%;background:rgba(255,255,255,.75);transform-origin:left;animation:burn 3s linear forwards}
+@keyframes in{from{opacity:0;transform:translateY(2px)}to{opacity:1;transform:none}}
+@keyframes burn{from{transform:scaleX(1)}to{transform:scaleX(0)}}
+@media (prefers-reduced-motion: reduce){.b{animation:none}.b.undo::after{display:none}}
+`;
+  let blkHost = null, blkEl = null, blkAnchor = null;
+  let blkMid = '', blkShown = '', blkPending = '', blkUndo = false;
+  let blkDwellT = 0, blkLeaveT = 0, blkUndoT = 0, blkFollowT = 0;
+  const blkDark = () => /dark/.test(document.documentElement.className || '') || document.documentElement.getAttribute('data-theme') === 'dark';
+
+  function blkEnsure() {
+    if (blkHost && blkHost.isConnected) return;
+    blkHost = document.createElement('dfy-blk');
+    blkHost.style.cssText = 'position:fixed;left:0;top:0;z-index:2147482998;display:none';
+    const sh = blkHost.attachShadow({ mode: 'open' });
+    const st = document.createElement('style');
+    st.textContent = BLK_CSS;
+    sh.appendChild(st);
+    blkEl = document.createElement('button');
+    blkEl.type = 'button';
+    blkEl.className = 'b';
+    blkEl.addEventListener('click', blkClick);
+    sh.appendChild(blkEl);
+    (document.body || document.documentElement).appendChild(blkHost);
+  }
+
+  function blkRender() {
+    blkEl.classList.toggle('undo', blkUndo);
+    blkEl.classList.toggle('dk', blkDark());
+    blkEl.textContent = blkUndo ? '撤销' : '拉黑';
+    blkEl.title = blkUndo ? '撤销这次拉黑' : '立即拉黑该账号（3 秒内可撤销，可在名单页恢复）';
+  }
+
+  /** 把按钮放到该评论昵称行右侧（有疑似徽标则放徽标后面）；评论不可见时返回 false */
+  function blkPlace() {
+    const el = blkAnchor;
+    if (!el || !el.isConnected || !blkHost) return false;
+    const base = el.localName === 'bili-comment-thread-renderer' ? rootElOf(el) : el;
+    if (!base || base.style.display === 'none') return false;
+    const sr = base.shadowRoot;
+    const info = sr && sr.querySelector('bili-comment-user-info');
+    let r = info ? info.getBoundingClientRect() : null;
+    if (r && r.width) {
+      const sus = sr.querySelector('.dfy-sus');
+      const sr2 = sus ? sus.getBoundingClientRect() : null;
+      r = { left: r.left, top: r.top, right: Math.max(r.right, sr2 && sr2.width ? sr2.right : 0), height: r.height };
+    } else {
+      const b = base.getBoundingClientRect();
+      if (!b.width) return false;
+      r = { left: b.left, top: b.top, right: b.left + 120, height: 24 };
+    }
+    if (r.top + r.height < 0 || r.top > window.innerHeight) return false;
+    blkHost.style.display = '';
+    const w = blkEl.offsetWidth, h = blkEl.offsetHeight;
+    const x = Math.max(8, Math.min(r.right + 8, window.innerWidth - w - 8));
+    const y = Math.max(8, Math.min(r.top + (r.height - h) / 2, window.innerHeight - h - 8));
+    blkHost.style.transform = `translate(${Math.round(x)}px, ${Math.round(y)}px)`;
+    return true;
+  }
+
+  function blkHide() {
+    clearTimeout(blkDwellT);
+    clearTimeout(blkLeaveT);
+    clearTimeout(blkUndoT);
+    clearInterval(blkFollowT);
+    blkPending = '';
+    blkShown = '';
+    blkUndo = false;
+    blkAnchor = null;
+    if (blkHost) blkHost.style.display = 'none';
+  }
+
+  function blkShow(el, rpid) {
+    blkPending = '';
+    const it = items.get(rpid);
+    const a = it && accounts.get(String(it.mid));
+    if (!a || !a.acc || !a.acc.mid || String(a.acc.mid) === String(upMid)) return; // UP 主自己不出按钮
+    blkEnsure();
+    blkAnchor = el;
+    blkMid = String(a.acc.mid);
+    blkUndo = grace.has(blkMid);
+    blkRender();
+    if (!blkPlace()) {
+      blkHide();
+      return;
+    }
+    blkShown = rpid;
+  }
+
+  function blkLeave() {
+    if (blkUndo) return; // 撤销窗口内按钮常驻，等倒计时结束
+    clearTimeout(blkDwellT);
+    blkPending = '';
+    clearTimeout(blkLeaveT);
+    blkLeaveT = setTimeout(blkHide, 250); // 给鼠标从评论移向按钮留一点时间
+  }
+
+  function blkClick(e) {
+    e.stopPropagation();
+    e.preventDefault();
+    const mid = blkMid;
+    if (!mid) return;
+    if (blkUndo) {
+      undoBlock(mid);
+      blkHide();
+      return;
+    }
+    blockMids([mid], 99, { grace: true });
+    blkUndo = true;
+    blkRender();
+    clearTimeout(blkUndoT);
+    blkUndoT = setTimeout(blkHide, 3300);
+    clearInterval(blkFollowT);
+    blkFollowT = setInterval(() => {
+      if (!blkPlace()) blkHide();
+    }, 250);
+    susTipHide();
+  }
+
+  /** 找鼠标所在的评论：沿 composedPath 取最近的带 data-dfy-rpid 的节点（楼中楼回复自己带，主楼是线程元素） */
+  function commentAt(path) {
+    let inReplies = false;
+    for (const n of path) {
+      if (n.nodeType !== 1) continue;
+      if (n.localName === 'bili-comment-replies-renderer') inReplies = true;
+      if (n.hasAttribute && n.hasAttribute('data-dfy-rpid')) {
+        // 停在楼中楼容器空白处（不属于任何回复）：不归给主楼
+        if (inReplies && n.localName === 'bili-comment-thread-renderer') return null;
+        return n;
+      }
+    }
+    return null;
+  }
+
+  /** 鼠标移动时判断悬停对象（path = composedPath）。 */
+  function blkPointer(path) {
+    const s = DFY.settings;
+    if (!s || !s.enabled) return;
+    const mode = s.blockBtn || 'auto';
+    if (mode === 'off') {
+      if (blkHost && blkHost.style.display !== 'none') blkHide();
+      return;
+    }
+    if (blkHost && path.includes(blkHost)) {
+      clearTimeout(blkLeaveT); // 鼠标移上按钮：保持
+      return;
+    }
+    const el = commentAt(path);
+    if (!el) return blkLeave();
+    clearTimeout(blkLeaveT);
+    if (blkUndo) return;
+    const rpid = el.getAttribute('data-dfy-rpid');
+    if (rpid === blkShown || rpid === blkPending) return; // 还在同一条评论上
+    clearTimeout(blkDwellT);
+    if (blkShown) {
+      blkShown = '';
+      if (blkHost) blkHost.style.display = 'none';
+    }
+    blkPending = rpid;
+    blkDwellT = setTimeout(() => blkShow(el, rpid), BLK_DWELL[mode] != null ? BLK_DWELL[mode] : 1000);
+  }
+
+  /* 为什么用 mousemove 而不是 mouseover/mouseout 委托：
+   * B 站评论全是嵌套的 shadow DOM。DOM 规范规定，mouseover/out 的 target 与 relatedTarget
+   * 在 document 层重定向后相同（都是 <bili-comments>）时，事件不会派发给 document 上的监听器——
+   * 也就是说鼠标在评论区内部从一条移到另一条时，document 级 mouseover 根本收不到。
+   * （旧版悬停提示也有同样的问题：只有从评论区外进入时才触发。）
+   * mousemove 每次都会派发，用 composedPath()[0] 去重，开销很小。 */
+  let lastPointerNode = null;
+  document.addEventListener(
+    'mousemove',
+    (e) => {
+      const path = e.composedPath ? e.composedPath() : [];
+      const node = path[0];
+      if (node === lastPointerNode) return;
+      lastPointerNode = node;
+      // 疑似徽标的评分明细提示（全页单例）
+      const t = path.find((n) => n.nodeType === 1 && n.hasAttribute && n.hasAttribute('data-dfy-sus'));
+      if (t) {
+        const a = accounts.get(t.getAttribute('data-dfy-sus'));
+        if (a && a.verdict) susTipShow(t, a);
+      } else susTipHide();
+      blkPointer(path);
+    },
+    { capture: true, passive: true }
+  );
+  document.addEventListener(
+    'mouseout',
+    (e) => {
+      if (!e.relatedTarget) {
+        lastPointerNode = null;
+        susTipHide();
+        blkLeave(); // 鼠标离开窗口
+      }
+    },
+    true
+  );
+  window.addEventListener(
+    'scroll',
+    () => {
+      if (blkUndo) blkPlace();
+      else if (blkShown || blkPending) blkHide();
+    },
+    { capture: true, passive: true }
+  );
 
   /** 手动拉黑（框选/徽标清理共用）：名单写入走后台队列，judge 后 doRender 自动隐藏/计数/记录 */
   async function blockMids(mids, score, opts = {}) {
@@ -352,7 +527,6 @@
     if (DFY.bubble && DFY.bubble.flash) DFY.bubble.flash('已撤销拉黑');
   }
 
-  let blockBtnActive = false; // 一键拉黑按钮当前是否启用（三档设置 + 自动档实时计算）
   /** 可见元素上的徽标同步：suspect 徽标挂/更新 + 一键拉黑按钮（三档设置控制） */
   function syncSuspect(host, a) {
     if (!host || !host.shadowRoot) return;
@@ -368,34 +542,12 @@
       st.textContent = SUS_CSS;
       root.appendChild(st);
     }
-    // 一键拉黑按钮：悬停评论浮出（纯 CSS），三档设置控制是否插入
-    let btn = root.querySelector('.dfy-blk');
-    const wantBtn = blockBtnActive && a && a.acc && a.acc.mid;
-    if (!wantBtn) {
-      if (btn) btn.remove();
-    } else {
-      if (!btn) {
-        btn = document.createElement('button');
-        btn.className = 'dfy-blk';
-        (badge || info).after(btn);
-      }
-      btn.setAttribute('data-dfy-blk', a.acc.mid);
-      const undoing = grace.has(String(a.acc.mid));
-      btn.classList.toggle('undo', undoing);
-      btn.classList.toggle('show', undoing); // 撤销态强制立即可见（不受 1s 延迟影响）
-      btn.title = undoing ? '撤销这次拉黑' : '立即拉黑该账号（3 秒内可撤销，可在名单页恢复）';
-      const html = undoing ? '撤销' : '拉黑';
-      if (btn.dataset.v !== html) {
-        btn.dataset.v = html;
-        btn.textContent = html;
-      }
-    }
     // 疑似徽标
     if (!isSus) return;
     if (!badge) {
       badge = document.createElement('span');
       badge.className = 'dfy-sus';
-      (btn || info).after(badge);
+      info.after(badge);
     }
     badge.setAttribute('data-dfy-sus', a.acc.mid);
     const html = `可疑 <b>${a.verdict.score}%</b>${a.llm ? '<i class="ds">DS</i>' : ''}<button class="ks" title="立即拉黑该账号（可在名单页恢复）">拉黑</button>`;
@@ -566,13 +718,6 @@
     if (!DFY.settings || !DFY.settings.enabled) return;
     const policy = DFY.settings.subPolicy || 'fish';
     const toBlock = new Set();
-    // 一键拉黑按钮启用态：on 常开 / off 关闭 / auto 按上下文（AI 话题视频或本页判鱼比例 ≥15%）
-    const mode = DFY.settings.blockBtn || 'auto';
-    if (mode === 'auto') {
-      let fishN = 0;
-      for (const a of accounts.values()) if (a.verdict && DFY.levelOf(a.verdict.score, DFY.settings.threshold) === 'fish') fishN++;
-      blockBtnActive = aiTopic || fishN >= 1; // 放宽：本页出现过判鱼即启用（原 15% 比例太紧，导致「停留无反应」）
-    } else blockBtnActive = mode === 'on';
     eachThread((th) => {
       const rootId = th.getAttribute('data-dfy-rpid');
       const rootIt = rootId && items.get(rootId);
