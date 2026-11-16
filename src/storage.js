@@ -10,6 +10,7 @@
       enabled: true,
       threshold: 60, // 大于等于此分数判定为大肥鱼，命中即隐藏
       subPolicy: 'fish', // 楼中楼策略：fish 只隐藏该账号的评论 | thread 楼里有大肥鱼就整楼隐藏 | ignore 只处理一级评论
+      blockBtn: 'auto', // 评论一键屏蔽按钮：auto 悬停 1 秒后出现 | on 一悬停就出现 | off 关闭
       showCount: true, // 评论区顶部显示「已清 N 条」
       showBubble: false, // 显示悬浮球（手动菜单入口，默认关闭保持无感）
       llmEnabled: false,

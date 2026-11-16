@@ -10,8 +10,8 @@
 <main class="app">
   <header class="hero">
     <div class="hero-txt">
-      <h1>DeepSieve · AI 评论滤除</h1>
-      <p class="sub">识别命中即隐藏 · 无动画 · 无提示</p>
+      <h1>DeepSieve</h1>
+      <p class="sub">AI 评论滤除 · 命中即隐藏，不打扰</p>
       <div class="fp" id="fp" title="扩展指纹：装了两份的话，两个面板这里的 ID 会不同"></div>
     </div>
     <label class="power" title="总开关"><input type="checkbox" id="enabled"><span><b class="on">运行中</b><b class="off">已停用</b></span></label>
@@ -37,43 +37,52 @@
   </nav>
 
   <section class="panel" data-panel="detect">
-    <div class="field-h">鉴定严格度 <em id="th-val">60</em></div>
-    <div class="slider"><span>宽松</span><input type="range" id="threshold" min="45" max="80" step="5"><span>严格</span></div>
-    <p class="hint" id="th-hint"></p>
-    <div class="field-h">评论一键屏蔽</div>
-    <div class="seg" id="block-btn">
-      <button data-v="auto">自动</button>
-      <button data-v="on">常开</button>
-      <button data-v="off">关闭</button>
+    <div class="card">
+      <div class="field-h">鉴定严格度 <em id="th-val">60</em></div>
+      <div class="slider"><span>宽松</span><input type="range" id="threshold" min="45" max="80" step="5"><span>严格</span></div>
+      <p class="hint" id="th-hint"></p>
     </div>
-    <p class="hint small">鼠标停在评论上浮出「拉黑」小按钮，点后有 3 秒撤销。「自动」= 停留 1 秒后出现；「常开」= 一悬停就出现。</p>
-    <div class="field-h">楼中楼处理</div>
-    <div class="seg" id="sub-policy">
-      <button data-v="fish">只隐藏该账号</button>
-      <button data-v="thread">整楼隐藏</button>
-      <button data-v="ignore">不管楼中楼</button>
+    <div class="card">
+      <div class="field-h">评论一键屏蔽</div>
+      <div class="seg" id="block-btn">
+        <button data-v="auto">自动</button>
+        <button data-v="on">常开</button>
+        <button data-v="off">关闭</button>
+      </div>
+      <p class="hint small">鼠标停在评论上浮出「拉黑」小按钮，点后有 3 秒撤销。「自动」= 停留 1 秒后出现；「常开」= 一悬停就出现。</p>
+      <div class="field-h">楼中楼处理</div>
+      <div class="seg" id="sub-policy">
+        <button data-v="fish">只隐藏该账号</button>
+        <button data-v="thread">整楼隐藏</button>
+        <button data-v="ignore">不管楼中楼</button>
+      </div>
+      <p class="hint" id="sub-hint"></p>
     </div>
-    <p class="hint" id="sub-hint"></p>
-    <div class="row"><span class="lbl">显示「已清 N 条」计数</span><label class="switch"><input type="checkbox" id="showCount"><span></span></label></div>
-    <div class="row"><span class="lbl">悬浮控制台（清扫台 · 可拖动）</span><label class="switch"><input type="checkbox" id="showBubble"><span></span></label></div>
-    <div class="row"><span class="lbl">前科记忆 <em class="mini" id="seen-n">0</em></span><button class="link" id="seen-clear">清空</button></div>
-    <p class="hint small">同一账号在多个视频下都被认出是大肥鱼，以后见到会直接加分。只存在本机。</p>
-    <p class="hint small keys">快捷键：<kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>S</kbd> 清理本页</p>
+    <div class="card">
+      <div class="row first"><span class="lbl">显示「已清 N 条」计数</span><label class="switch"><input type="checkbox" id="showCount"><span></span></label></div>
+      <div class="row"><span class="lbl">悬浮控制台<em class="mini">清扫台 · 可拖动</em></span><label class="switch"><input type="checkbox" id="showBubble"><span></span></label></div>
+      <div class="row"><span class="lbl">前科记忆 <em class="mini" id="seen-n">0</em></span><button class="link" id="seen-clear">清空</button></div>
+      <p class="hint small">同一账号在多个视频下都被认出是大肥鱼，以后见到会直接加分。只存在本机。</p>
+      <p class="hint small keys">快捷键：<kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>S</kbd> 清理本页</p>
+    </div>
   </section>
 
   <section class="panel" data-panel="words">
-    <p class="hint top">评论命中任意一个词 → 该账号直接隐藏。不分大小写，包含即命中，所有档位生效。最多 500 个词。</p>
-    <div class="word-add">
-      <input type="text" id="word-in" placeholder="输入一个词，回车添加" maxlength="24" autocomplete="off" spellcheck="false">
-      <button class="btn" id="word-add">添加</button>
+    <div class="card">
+      <p class="hint top">评论命中任意一个词 → 该账号直接隐藏。不分大小写，包含即命中，所有档位生效。最多 500 个词。</p>
+      <div class="word-add">
+        <input type="text" id="word-in" placeholder="输入一个词，回车添加" maxlength="24" autocomplete="off" spellcheck="false">
+        <button class="btn" id="word-add">添加</button>
+      </div>
+      <div class="list-tools"><span class="sub">支持导入 txt（每行一词）或 JSON</span><button class="btn ghost sm" id="word-export" title="导出屏蔽词为 JSON">导出</button><label class="btn ghost sm" title="导入 txt（每行一词）或 JSON 数组">导入<input type="file" id="word-import" accept=".txt,.json,application/json,text/plain" hidden></label><button class="link danger" id="word-clear" title="清空全部屏蔽词（点两下确认）">清空</button></div>
+      <div class="field-h">词表 <em id="words-c">0</em><button class="link" id="words-toggle">展开</button></div>
+      <div class="chips" id="words"></div>
+      <p class="hint small" id="words-n"></p>
     </div>
-    <div class="list-tools"><span class="sub">支持导入 txt（每行一词）或 JSON</span><button class="btn ghost sm" id="word-export" title="导出屏蔽词为 JSON">导出</button><label class="btn ghost sm" title="导入 txt（每行一词）或 JSON 数组">导入<input type="file" id="word-import" accept=".txt,.json,application/json,text/plain" hidden></label><button class="link danger" id="word-clear" title="清空全部屏蔽词（点两下确认）">清空</button></div>
-    <div class="field-h">词表 <em id="words-c">0</em><button class="link" id="words-toggle">展开</button></div>
-    <div class="chips" id="words"></div>
-    <p class="hint small" id="words-n"></p>
   </section>
 
   <section class="panel ds" data-panel="ds">
+   <div class="card">
     <div class="row first"><span class="lbl">开启 DeepSeek 精判</span><label class="switch"><input type="checkbox" id="llmEnabled"><span></span></label></div>
     <p class="hint">拿不准的账号交给 DeepSeek 再判一次，结果静默生效。</p>
     <div id="ds-body">
@@ -87,6 +96,7 @@
       <div class="test"><button class="btn" id="test">测试连接</button><span id="test-res"></span></div>
       <p class="hint small lock">密钥只保存在本机，只会发送到 api.deepseek.com。<a href="https://platform.deepseek.com/api_keys" target="_blank">申请密钥</a></p>
     </div>
+   </div>
   </section>
 
   <section class="panel" data-panel="lists">
@@ -97,14 +107,12 @@
     </div>
 
     <div class="rec-card">
-      <div class="field-h">人类白名单 <em id="wl-n">0</em><span class="sub">恢复的账号放行到底，永不隐藏</span></div>
-      <div class="rec-actions"><button class="link danger" id="wl-clear">清空</button></div>
+      <div class="field-h">人类白名单 <em id="wl-n">0</em><button class="link danger" id="wl-clear">清空</button><span class="sub">恢复的账号放行到底，永不隐藏</span></div>
       <ul class="list short" id="wl"></ul>
     </div>
 
     <div class="rec-card">
-      <div class="field-h">本页隐藏 <em id="rb-n">0</em><span class="sub">当前页面会话 · 点「恢复」放行账号</span></div>
-      <div class="rec-actions"><button class="link" id="rb-export" title="导出本页会话的隐藏记录（JSON）">导出本页</button></div>
+      <div class="field-h">本页隐藏 <em id="rb-n">0</em><button class="link" id="rb-export" title="导出本页会话的隐藏记录（JSON）">导出本页</button><span class="sub">当前页面会话 · 点「恢复」放行账号</span></div>
       <ul class="list short" id="rb"></ul>
     </div>
 
@@ -125,7 +133,7 @@
     <p class="hint small" id="selfcheck" title="绕过界面逻辑直读 chrome.storage 的原始计数，用于核对界面显示">存储自检：读取中…</p>
   </section>
 
-  <footer>基于开源项目 dafeiyu-cleaner (MIT) 修改 · 数据只存本机 · 不读 Cookie · 不调用 B 站写接口</footer>
+  <footer>数据只存本机 · 不读 Cookie · 不调用 B 站写接口<br>基于开源项目 dafeiyu-cleaner (MIT) 修改</footer>
 </main>
 <script src="../src/icons.js"></script>
 <script src="../src/storage.js"></script>

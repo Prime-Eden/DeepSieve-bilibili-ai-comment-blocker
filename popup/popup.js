@@ -60,6 +60,7 @@
     $('th-val').textContent = s.threshold + '%';
     $('th-hint').textContent = `评分 ≥ ${s.threshold}% 判为大肥鱼立即隐藏；${Math.max(25, s.threshold - 25)}% 起算可疑。低于阈值不会隐藏，可疑账号只作为 DeepSeek 复核候选。`;
     for (const b of $('sub-policy').children) b.classList.toggle('on', b.dataset.v === (s.subPolicy || 'fish'));
+    for (const b of $('block-btn').children) b.classList.toggle('on', b.dataset.v === (s.blockBtn || 'auto'));
     $('sub-hint').textContent = SUB_HINT[s.subPolicy || 'fish'];
     $('llmKey').value = s.llmKey || '';
     $('llmModel').value = s.llmModel;
@@ -317,6 +318,14 @@
     $('th-hint').textContent = `评分 ≥ ${S.settings.threshold}% 判为大肥鱼立即隐藏；${Math.max(25, S.settings.threshold - 25)}% 起算可疑。低于阈值不会隐藏，可疑账号只作为 DeepSeek 复核候选。`;
   };
   $('threshold').onchange = save;
+  // 评论一键屏蔽三档（此前只有 HTML 没有事件绑定，选项点了没反应、当前档位也不高亮）
+  $('block-btn').onclick = (e) => {
+    const v = e.target.dataset.v;
+    if (!v) return;
+    S.settings.blockBtn = v;
+    save();
+    renderSettings();
+  };
   $('sub-policy').onclick = (e) => {
     const v = e.target.dataset.v;
     if (!v) return;
@@ -519,7 +528,7 @@
           .slice(0, 300)
           .map(
             ([mid, v]) =>
-              `<li>${v.a ? `<img src="${esc(v.a.replace(/^http:/, 'https:'))}@52w_52h.webp" referrerpolicy="no-referrer" onerror="this.style.visibility='hidden'">` : '<img alt="">'}<a class="n" href="https://space.bilibili.com/${esc(mid)}" target="_blank">${esc(v.n || mid)}</a><span class="d">${v.t ? new Date(v.t).toLocaleDateString() : '导入'}</span><button data-un="${esc(mid)}">移除</button></li>`
+              `<li>${v.a ? `<img src="${esc(v.a.replace(/^http:/, 'https:'))}@52w_52h.webp" referrerpolicy="no-referrer" onerror="this.style.visibility='hidden'">` : `<span class="av">${esc(String(v.n || mid).slice(0, 1))}</span>`}<a class="n" href="https://space.bilibili.com/${esc(mid)}" target="_blank">${esc(v.n || mid)}</a><span class="d">${v.t ? new Date(v.t).toLocaleDateString() : '导入'}</span><button data-un="${esc(mid)}">移除</button></li>`
           )
           .join('')
       : `<li class="empty">${q ? '没有找到这条鱼' : '还没有屏蔽任何大肥鱼'}</li>`;

@@ -320,7 +320,7 @@
       if (!b.width) return false;
       r = { left: b.left, top: b.top, right: b.left + 120, height: 24 };
     }
-    if (r.top + r.height < 0 || r.top > window.innerHeight) return false;
+    if (r.top < 0 || r.top + r.height > window.innerHeight) return false; // 昵称行没完整露出：不出按钮（钳制后会脱离评论悬在屏幕边缘）
     blkHost.style.display = '';
     const w = blkEl.offsetWidth, h = blkEl.offsetHeight;
     const x = Math.max(8, Math.min(r.right + 8, window.innerWidth - w - 8));

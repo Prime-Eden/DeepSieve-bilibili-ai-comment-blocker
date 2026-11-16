@@ -94,41 +94,47 @@
   const CSS = `
 :host{all:initial}
 *{box-sizing:border-box;margin:0;padding:0}
-.c{position:fixed;top:76px;right:18px;z-index:2147483000;width:324px;padding:14px 16px;border-radius:12px;
-  background:#fff;border:1px solid rgba(0,0,0,.08);box-shadow:0 16px 40px -18px rgba(0,0,0,.3);
-  font:13px/1.6 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;color:#1f2329}
-.dk .c,.c.dk{background:#26262c;border-color:rgba(255,255,255,.1);color:#f0f0f4}
-.hd{display:flex;align-items:center;gap:8px;margin-bottom:10px}
-.hd b{font-size:13.5px}
-.hd .x{margin-left:auto;cursor:pointer;color:#8b8b94;font-size:16px;line-height:1;padding:2px 4px;border-radius:6px}
-.hd .x:hover{background:rgba(0,0,0,.06)}
-.who{display:flex;gap:10px;align-items:center}
-.who img{width:44px;height:44px;border-radius:50%;flex:none}
-.nm{font-weight:600;font-size:14px}
-.meta{color:#8b8b94;font-size:12px}
-.gauge{margin:10px 0 6px;height:6px;border-radius:3px;background:rgba(0,0,0,.08);overflow:hidden}
-.gauge i{display:block;height:100%;background:#e0566b;border-radius:3px;transition:width .4s ease}
-.dk .gauge{background:rgba(255,255,255,.1)}
-.lv{font-size:12.5px;margin-bottom:6px}
-.lv b{color:#e0566b}
-ul{list-style:none;margin:6px 0 10px}
-li{display:flex;gap:8px;padding:2px 0;color:#5b6378;font-size:12.3px}
-.dk li{color:#b6bcc8}
-li b{flex:none;min-width:30px;text-align:right;font-weight:600;color:#c2455a}
-li b.neg{color:#1a9e6c}
-.llm{margin:6px 0 10px;padding:8px 10px;border-radius:8px;background:rgba(37,70,184,.07);font-size:12.3px}
-.dk .llm{background:rgba(255,255,255,.07)}
+.c{--ink:#1f2329;--mut:#667085;--faint:#98a2b3;--surface:#fff;--line:rgba(16,24,40,.08);--field:rgba(16,24,40,.06);--tint:rgba(37,70,184,.08);--tint-h:rgba(37,70,184,.14);--acc:#2546b8;--acc-h:#1d3a9c;--acc-t:#2546b8;--bad:#c2455a;--good:#1a9e6c;--lvc:#1a9e6c;
+  position:fixed;top:76px;right:18px;z-index:2147483000;width:332px;padding:16px;border-radius:16px;
+  background:var(--surface);border:1px solid var(--line);box-shadow:0 1px 2px rgba(16,24,40,.06),0 18px 40px -14px rgba(16,24,40,.32);
+  font:13px/1.55 -apple-system,BlinkMacSystemFont,\"PingFang SC\",\"Microsoft YaHei\",sans-serif;color:var(--ink)}
+.c.dk{--ink:#eceef3;--mut:#a3a9b8;--faint:#7c8392;--surface:#25272d;--line:rgba(255,255,255,.1);--field:rgba(255,255,255,.08);--tint:rgba(143,176,255,.12);--tint-h:rgba(143,176,255,.2);--acc:#4a6ee0;--acc-h:#5b7be8;--acc-t:#9db8ff;--bad:#e0707f;--good:#4cc38a}
+.c[data-lv=fish]{--lvc:#e0566b}
+.c[data-lv=suspect]{--lvc:#e8964a}
+.hd{display:flex;align-items:center;gap:8px;margin-bottom:12px}
+.hd b{font-size:13.5px;font-weight:700}
+.hd .uid{padding:0 7px;border-radius:999px;background:var(--field);color:var(--mut);font-size:11px;line-height:18px;font-variant-numeric:tabular-nums}
+.hd .x{margin-left:auto;width:26px;height:26px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--mut);font-size:17px;line-height:1;border-radius:8px}
+.hd .x:hover{background:var(--field);color:var(--ink)}
+.notice{margin-bottom:12px;padding:7px 10px;border-radius:9px;background:var(--tint);color:var(--acc-t);font-size:12px}
+.who{display:flex;gap:12px;align-items:center}
+.avw{position:relative;width:46px;height:46px;border-radius:50%;flex:none;background:var(--tint);color:var(--acc-t);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:17px;overflow:hidden}
+.avw img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.who>div:last-child{min-width:0}
+.nm{font-weight:600;font-size:14.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.meta{color:var(--mut);font-size:12px}
+.verdict{display:flex;align-items:baseline;gap:8px;margin:14px 0 8px}
+.verdict strong{font-size:30px;line-height:1;font-weight:700;color:var(--lvc);font-variant-numeric:tabular-nums}
+.verdict strong small{font-size:15px;font-weight:600;margin-left:1px}
+.verdict span{font-size:13px;color:var(--mut)}
+.gauge{position:relative;height:6px;border-radius:3px;background:var(--field);margin-bottom:12px}
+.gauge i{position:absolute;left:0;top:0;bottom:0;border-radius:3px;background:var(--lvc);transition:width .4s ease}
+.gauge u{position:absolute;top:-3px;bottom:-3px;width:2px;margin-left:-1px;border-radius:1px;background:var(--faint);opacity:.7}
+ul{list-style:none;margin:0 0 12px;padding-top:10px;border-top:1px solid var(--line)}
+li{display:flex;gap:10px;align-items:baseline;padding:3px 0;color:var(--mut);font-size:12.3px}
+li b{flex:none;min-width:34px;text-align:center;padding:0 4px;border-radius:6px;background:var(--field);font-weight:600;font-variant-numeric:tabular-nums;color:var(--bad);font-size:11.5px}
+li b.neg{color:var(--good)}
+li span{min-width:0}
+.llm{margin:0 0 12px;padding:9px 11px;border-radius:10px;background:var(--tint);font-size:12.3px;color:var(--ink)}
 .btns{display:flex;gap:8px;flex-wrap:wrap}
-button{all:unset;cursor:pointer;padding:4px 12px;border-radius:8px;font-size:12.5px;border:1px solid rgba(0,0,0,.14)}
-button:hover{background:rgba(0,0,0,.05)}
-.dk button{border-color:rgba(255,255,255,.16)}
-.dk button:hover{background:rgba(255,255,255,.08)}
-button.pri{background:#2546b8;border-color:#2546b8;color:#fff}
-button.pri:hover{background:#1d3a9c}
-button.danger{background:#e0566b;border-color:#e0566b;color:#fff}
-button.danger:hover{background:#c9455a}
-.notice{margin-bottom:8px;padding:6px 10px;border-radius:8px;background:rgba(224,86,107,.1);font-size:12.3px}
-.empty{color:#8b8b94}`;
+button{all:unset;box-sizing:border-box;cursor:pointer;height:32px;padding:0 13px;display:inline-flex;align-items:center;border-radius:9px;font-size:12.5px;font-weight:600;background:var(--tint);color:var(--acc-t);transition:background .12s}
+button:hover{background:var(--tint-h)}
+button.pri,button.danger{background:var(--acc);color:#fff}
+button.pri:hover,button.danger:hover{background:var(--acc-h)}
+button:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+.empty{color:var(--faint)}
+@media (prefers-reduced-motion: reduce){.gauge i{transition:none}}
+`;
 
   let host = null, root = null, card = null, current = null, running = false;
 
@@ -191,6 +197,7 @@ button.danger:hover{background:#c9455a}
     const white = DFY.lists.white[p.mid];
     const dk = /dark/.test(document.documentElement.className || '') || document.documentElement.getAttribute('data-theme') === 'dark';
     card.classList.toggle('dk', dk);
+    card.dataset.lv = info.lv;
     const ev = r.reasons
       .slice(0, 6)
       .map((x) => `<li><b>${x.w ? (x.w > 0 ? '+' : '') + x.w : '·'}</b><span>${esc(x.why)}</span></li>`)
@@ -208,14 +215,16 @@ button.danger:hover{background:#c9455a}
     if (!canLLM) btns.push('<button data-a="cfg">配置精判</button>');
     if (!white && info.lv !== 'human') btns.push('<button data-a="white">是人类</button>');
     card.innerHTML = `
-<div class="hd"><b>账号鉴定</b><span class="meta">UID ${esc(p.mid)}</span><span class="x" data-a="close" title="关闭">×</span></div>
+<div class="hd"><b>账号鉴定</b><span class="uid">UID ${esc(p.mid)}</span><span class="x" data-a="close" title="关闭" role="button" aria-label="关闭">×</span></div>
 ${blocked ? `<div class="notice">已在屏蔽名单 · 该账号的评论会被自动隐藏</div>` : white ? `<div class="notice">在白名单里，不会被处理</div>` : ''}
-<div class="who"><img src="${esc((p.avatar || '').replace(/^http:/, 'https:'))}@132w_132h.webp" referrerpolicy="no-referrer"><div><div class="nm">${esc(p.uname)}</div><div class="meta">Lv${p.level} · ${fmtNum(p.fans)} 粉丝 · 投稿 ${p.archives}</div></div></div>
-<div class="gauge"><i style="width:${r.score}%"></i></div>
-<div class="lv"><b>${r.score}%</b> · ${blocked ? '已屏蔽' : info.label}</div>
+<div class="who"><div class="avw"><span>${esc(String(p.uname || '?').slice(0, 1))}</span><img src="${esc((p.avatar || '').replace(/^http:/, 'https:'))}@132w_132h.webp" referrerpolicy="no-referrer"></div><div><div class="nm">${esc(p.uname)}</div><div class="meta">Lv${p.level} · ${fmtNum(p.fans)} 粉丝 · 投稿 ${p.archives}</div></div></div>
+<div class="verdict"><strong>${r.score}<small>%</small></strong><span>${blocked ? '已屏蔽' : info.label}</span></div>
+<div class="gauge"><i style="width:${r.score}%"></i><u style="left:${DFY.settings.threshold}%" title="当前判定阈值"></u></div>
 <ul>${ev || '<li class="empty">没有发现 AI 特征</li>'}</ul>
 ${llm}
 <div class="btns">${btns.join('')}</div>`;
+    // 头像加载失败（被屏蔽 / 断网）时露出昵称首字占位；不用内联 onerror，避免被页面 CSP 拦截
+    for (const im of card.querySelectorAll('.avw img')) im.addEventListener('error', () => (im.style.display = 'none'));
     card.style.display = '';
   }
 
