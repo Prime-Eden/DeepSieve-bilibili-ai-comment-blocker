@@ -192,16 +192,19 @@
    * fish（≥阈值）无感隐藏；suspect（可疑）保留可见但标注「可疑 N%」，
    * DeepSeek 参与过判定时追加 DS 角标；悬停显示评分明细。纯信息展示，点击无动作。 */
   const SUS_CSS = `
-.dfy-sus{display:inline-flex;align-items:center;gap:4px;margin-left:6px;padding:1px 7px;border-radius:999px;background:rgba(130,130,145,.16);font:600 11px/1.7 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;vertical-align:middle;cursor:help;user-select:none;color:inherit}
-.dfy-sus b{font-weight:800}
-.dfy-sus .ds{font-style:normal;font-size:9px;font-weight:800;line-height:14px;padding:0 4px;border-radius:4px;background:#3d5bd6;color:#fff}
-.dfy-sus .ks{border:0;background:#c2455a;color:#fff;font:700 9.5px/15px -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;padding:0 6px;border-radius:4px;cursor:pointer}
-.dfy-sus .ks:hover{background:#a83548}
-.dfy-blk{display:inline-block;max-width:0;padding:1px 0;margin-left:0;opacity:0;overflow:hidden;white-space:nowrap;border-radius:4px;background:#c2455a;color:#fff;font:700 10.5px/1.8 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;cursor:pointer;border:none;vertical-align:middle;pointer-events:none;transition:max-width .18s ease 1s,opacity .18s ease 1s,padding .18s ease 1s,margin-left .18s ease 1s}
-.dfy-blk.show,:host(:hover) .dfy-blk{max-width:80px;padding:1px 8px;margin-left:6px;opacity:1;pointer-events:auto;transition-delay:0s}
-.dfy-blk:hover{background:#a83548}
-.dfy-blk.undo{background:#2546b8}
+.dfy-sus{display:inline-flex;align-items:center;gap:5px;margin-left:6px;height:20px;padding:0 3px 0 8px;border-radius:999px;background:rgba(150,150,165,.16);font:500 11px/20px -apple-system,BlinkMacSystemFont,\"PingFang SC\",\"Microsoft YaHei\",sans-serif;vertical-align:middle;cursor:help;user-select:none;color:inherit}
+.dfy-sus b{font-weight:700;font-variant-numeric:tabular-nums}
+.dfy-sus .ds{font-style:normal;font-size:9px;font-weight:700;line-height:14px;padding:0 4px;border-radius:4px;background:rgba(61,91,214,.18);color:#5a78e6}
+.dfy-sus .ks{border:0;background:transparent;color:inherit;opacity:.72;font:600 10.5px/16px -apple-system,BlinkMacSystemFont,\"PingFang SC\",\"Microsoft YaHei\",sans-serif;padding:0 7px;border-radius:999px;cursor:pointer;transition:background .12s ease,opacity .12s ease,color .12s ease}
+.dfy-sus .ks:hover{background:#c2455a;color:#fff;opacity:1}
+.dfy-blk{position:relative;display:inline-block;max-width:0;height:20px;padding:0;margin-left:0;opacity:0;overflow:hidden;white-space:nowrap;border-radius:999px;background:rgba(150,150,165,.16);color:inherit;font:600 11px/20px -apple-system,BlinkMacSystemFont,\"PingFang SC\",\"Microsoft YaHei\",sans-serif;cursor:pointer;border:none;vertical-align:middle;pointer-events:none;transition:max-width .18s ease 1s,opacity .18s ease 1s,padding .18s ease 1s,margin-left .18s ease 1s,background .12s ease,color .12s ease}
+.dfy-blk.show,:host(:hover) .dfy-blk{max-width:80px;padding:0 10px;margin-left:6px;opacity:1;pointer-events:auto;transition-delay:0s}
+.dfy-blk:hover{background:#c2455a;color:#fff}
+.dfy-blk.undo{background:#2546b8;color:#fff}
 .dfy-blk.undo:hover{background:#1d3a9c}
+.dfy-blk.undo::after{content:"";position:absolute;left:0;bottom:0;height:2px;width:100%;background:rgba(255,255,255,.75);transform-origin:left;animation:dfyburn 3s linear forwards}
+@keyframes dfyburn{from{transform:scaleX(1)}to{transform:scaleX(0)}}
+@media (prefers-reduced-motion: reduce){.dfy-blk.undo::after{animation:none;display:none}}
 `;
   let susTip = null;
   function susTipShow(anchor, a) {
@@ -219,7 +222,7 @@
       `<div style="font-weight:700;margin-bottom:2px">${DFY.esc(a.acc.uname)} · 可疑 ${v.score == null ? '?' : v.score}%${a.llm ? ` · DeepSeek ${a.llm.ai}%` : ''}</div>` +
       (reasons ? `<div style="opacity:.85">${reasons}</div>` : '<div style="opacity:.7">暂无明显特征</div>') +
       (a.llm ? `<div style="margin-top:3px;opacity:.85">DeepSeek：${DFY.esc(a.llm.reason || '')}</div>` : '') +
-      '<div style="margin-top:4px;opacity:.55">仅供参考 · 点「清理」立即拉黑 · 达到阈值自动隐藏</div>';
+      '<div style="margin-top:4px;opacity:.55">仅供参考 · 点「拉黑」立即拉黑 · 达到阈值自动隐藏</div>';
     const r = anchor.getBoundingClientRect();
     susTip.style.display = 'block';
     const tw = susTip.offsetWidth, thh = susTip.offsetHeight;
@@ -395,7 +398,7 @@
       (btn || info).after(badge);
     }
     badge.setAttribute('data-dfy-sus', a.acc.mid);
-    const html = `可疑 <b>${a.verdict.score}%</b>${a.llm ? '<i class="ds">DS</i>' : ''}<button class="ks" title="立即拉黑该账号（可在名单页恢复）">清理</button>`;
+    const html = `可疑 <b>${a.verdict.score}%</b>${a.llm ? '<i class="ds">DS</i>' : ''}<button class="ks" title="立即拉黑该账号（可在名单页恢复）">拉黑</button>`;
     if (badge.dataset.v !== html) {
       badge.dataset.v = html;
       badge.innerHTML = html;

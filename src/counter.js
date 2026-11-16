@@ -5,10 +5,12 @@
   const DFY = (globalThis.DFY = globalThis.DFY || {});
 
   const CSS = `
-.b{margin:6px 0 2px;display:inline-block;padding:4px 10px;border-radius:12px;
-  font:500 12.5px/1.6 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;
-  color:#6b7280;background:rgba(0,0,0,.045);user-select:none}
-.b.dk{color:#9a9aa6;background:rgba(255,255,255,.08)}`;
+.b{margin:8px 0 4px;display:inline-flex;align-items:center;gap:6px;padding:3px 11px 3px 9px;border-radius:999px;
+  font:500 12px/1.6 -apple-system,BlinkMacSystemFont,\"PingFang SC\",\"Microsoft YaHei\",sans-serif;
+  color:#667085;background:rgba(16,24,40,.045);user-select:none;font-variant-numeric:tabular-nums}
+.b::before{content:"";flex:none;width:6px;height:6px;border-radius:50%;background:#2546b8;opacity:.75}
+.b.dk{color:#a3a9b8;background:rgba(255,255,255,.08)}
+.b.dk::before{background:#9db8ff}`;
 
   const isDark = () => /dark/.test(document.documentElement.className || '') || document.documentElement.getAttribute('data-theme') === 'dark';
 
@@ -32,6 +34,7 @@
 
   function update() {
     if (!textEl) return;
+    textEl.classList.toggle('dk', isDark());
     const t = `已清 ${DFY.counter.total()} 条`;
     if (t === cache) return;
     cache = t;
