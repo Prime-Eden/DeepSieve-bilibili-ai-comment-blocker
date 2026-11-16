@@ -44,11 +44,11 @@
   function sendFishVerdicts() {
     const f = [];
     for (const a of accounts.values()) if (a.verdict && a.verdict.level === 'fish') f.push(String(a.acc.mid));
-    window.postMessage({ source: 'dfy-iso', type: 'verdicts', f }, '*');
+    window.postMessage({ source: 'dfy-iso', type: 'verdicts', f }, location.origin);
   }
 
   window.addEventListener('message', (e) => {
-    if (e.source !== window || !e.data || e.data.source !== 'dfy-main') return;
+    if (e.source !== window || e.origin !== location.origin || !e.data || e.data.source !== 'dfy-main') return;
     // 接口层拦截的评论：进回收站（可审计、可恢复）。全文/特征从 pre-scan 已入库的数据与判定结果就近补全
     if (e.data.type === 'api-blocked') {
       for (const it of e.data.items || []) {
@@ -679,7 +679,7 @@
   };
 
   C.rescan = function () {
-    window.postMessage({ source: 'dfy-iso', type: 'rescan' }, '*');
+    window.postMessage({ source: 'dfy-iso', type: 'rescan' }, location.origin);
     setTimeout(() => C.rejudgeAll(), 600);
   };
 

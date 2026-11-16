@@ -1,6 +1,6 @@
 # HANDOFF · DeepSieve 交接文档
 
-> 本文档由 Claude（claude.ai 审核 agent）的审核发现 + WorkBuddy 接手 agent 的实施状态合并而成，用于多 agent 之间的工作交接。最后更新：2026-11-14（v2.15.0）。
+> 本文档由 Claude（claude.ai 审核 agent）的审核发现 + WorkBuddy 接手 agent 的实施状态合并而成，用于多 agent 之间的工作交接。最后更新：2026-11-16（v2.16.4）。
 
 ## 背景
 
@@ -24,7 +24,7 @@
 | 1 | `api.deepseek.com` 应为按需申请权限，安装时不应弹权限提示 | ✅ v2.15.0 已改 `optional_host_permissions`；开启精判开关时弹窗授权，拒绝自动回滚 |
 | 2 | PRIVACY.md 漏写外发内容（UID/离线分数/命中原因/头像链接/投稿标题），`llmVision` 默认开 | ✅ v2.15.0 已补写 + `llmVision` 默认改 false |
 | 3 | `unlimitedStorage` 需说明理由 | ✅ 审核须知「已知设计决策」已说明（总记录 2000 条 + 名单 + 前科 + 精判缓存的本地持久化） |
-| 4 | Firefox 遗留逻辑与 manifest 不符 | ✅ v2.15.0 已删（NO_CONSENT 分支），PRIVACY 加「仅面向 Chrome/Edge」说明 |
+| 4 | Firefox 遗留逻辑与 manifest 不符 | ✅ v2.16.4 才真正删净（v2.15.0 声称已删，但 background.js 的 NO_CONSENT / IS_FIREFOX / consented() 与 popup.js 的 askConsent() 仍在），PRIVACY 已加「仅面向 Chrome/Edge」说明 |
 | 5 | API Key 随 settings 加载进每个 B 站页面 | ✅ v2.15.0 已修（content 内 key 替换为 `configured` 标记，真实密钥只在后台） |
 | 6 | 规则 `postMessage('*')` + localStorage 下发，页面脚本可读名单 | ✅ v2.15.0 部分（targetOrigin 改 `location.origin` + main-world 校验 origin）；localStorage 快照为「老名单零闪烁」的核心机制，保留（同源页面脚本本可读扩展无法阻止，风险可接受） |
 | 7 | 导出数据包文件头还是 `dafeiyu-clean`；评论 ID 可反查账号（UID 哈希意义有限） | ✅ v2.15.0 已改（导出 app=`DeepSieve`，去掉评论文 ID 字段） |
@@ -34,7 +34,7 @@
 
 | 方案 | 状态 |
 |---|---|
-| 1. 一键屏蔽：悬停浮出按钮 + 5 秒撤销 + 三档开关（自动/常开/关闭），自动档按 AI 话题/判鱼比例启用 | ✅ v2.16.0 已实施（grace 撤销窗口 + auto 档 = aiTopic 或判鱼比例 ≥15%） |
+| 1. 一键屏蔽：悬停浮出按钮 + 3 秒撤销 + 三档开关（自动/常开/关闭），自动档按 AI 话题/判鱼比例启用 | ✅ v2.16.0 已实施（grace 撤销窗口 + auto 档 = aiTopic 或判鱼比例 ≥15%） |
 | 2. 悬浮台：贴边吸附半收起 / CSS 动效遵循 reduce-motion / 菜单朝屏幕中心展开 / 内容局部刷新（解决吞点击与错位）/ 统一配色 | ✅ v2.16.0 已实施（dock 吸附 + 骨架一次构建 + 定点更新 + reduce-motion + 计数条圆角对齐） |
 | 3a. 同款话术连带：拉黑提示「本页还有 N 个同类」一键全清 | ⏳ 待实施 |
 | 3b. 文本相似度加分（本页雷同批量水军，页内内存计算） | ⏳ 待实施 |
@@ -47,10 +47,21 @@
 - 审核包 `DeepSieve-review-2026-11-13.zip` 内数据为 v2.14.1 导出 + 脱敏（UID 哈希化、时间归日、评论全文与昵称保留）
 - **修复后建议重新导出**：v2.15.0 起导出格式 app=DeepSieve、无评论文 ID
 
+## v2.16.4 修复（二次审阅发现，v2.16.3 上的回归与遗漏）
+
+| # | 问题 | 修复 |
+|---|---|---|
+| 1 | Chrome 上精判开关从不申请 `api.deepseek.com` 权限：申请代码挂在 `askConsent()` 之后，而它在 Chrome 返回 null，整段不执行；且 `permissions.request` 放在 await 之后会丢失点击手势 | popup.js 改为在点击处理里同步直接申请，拒绝则回滚开关 |
+| 2 | API Key 脱敏只在启动时做一次，`onChange` 里重新合并设置后真实密钥又回到页面脚本 | content.js 每次重载设置都再脱敏 |
+| 3 | Firefox 遗留代码未删净（见上表 4） | 已删 |
+| 4 | 部分 `postMessage` 仍用 `'*'`，接收端也没校验 `e.origin` | 发送统一 `location.origin`；comments / counter / main-world 接收端补 origin 校验 |
+| 5 | 撤销窗口代码为 3 秒，popup 文案与本文档写 5 秒 | 文案与文档改 3 秒 |
+| 6 | 关闭状态下加载页面后再开启：空间页路由检测未启动，主世界不重送评论 | 路由检测常驻（仅启用时执行）；关闭→开启时补发 rescan |
+
+> 以上均为静态阅读 + 语法检查 + content.js 的 mock 测试（密钥脱敏、关→开流程）；popup 授权流程需在 Chrome 里实机验证。
+
 ## 后续版本路线
 
-- v2.16：一键屏蔽三档 + 悬停按钮 + 撤销（方案 1）
-- v2.17：悬浮台贴边吸附重写 + 局部刷新（方案 2）
-- ~~v2.16：方案 1 + 2~~ ✅ 已完成
+- ~~v2.16：方案 1 + 2~~ ✅ 已完成（v2.16.4 为修复版）
 - v2.17：同款话术连带 + 文本相似度（方案 3a/3b）
 - 事件驱动改造（方案 3d）：待评估

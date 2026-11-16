@@ -49,9 +49,13 @@
     if (ch.settings) {
       const prev = DFY.settings;
       DFY.settings = Object.assign({}, DFY.DEFAULTS.settings, ch.settings);
+      DFY.settings.llmKey = DFY.settings.llmKey ? 'configured' : ''; // 每次重载都要再脱敏，否则真实密钥会回到页面脚本里
       const needJudge = prev.threshold !== DFY.settings.threshold || prev.subPolicy !== DFY.settings.subPolicy || prev.llmEnabled !== DFY.settings.llmEnabled || prev.enabled !== DFY.settings.enabled;
       if (!DFY.settings.enabled) DFY.comments.showAll();
-      else if (needJudge) DFY.comments.rejudgeAll();
+      else if (!prev.enabled) {
+        DFY.comments.rejudgeAll();
+        window.postMessage({ source: 'dfy-iso', type: 'rescan' }, location.origin); // 从关闭切到开启：让主世界重新送一次评论
+      } else if (needJudge) DFY.comments.rejudgeAll();
       else DFY.comments.render();
       DFY.bubble.sync(); // 只有设置变化才需要同步悬浮台可见性——名单写入等高频变更不再打扰菜单
     }
@@ -83,15 +87,14 @@
       else if (msg.dfy === 'removed') send({ items: C.removedList() });
       else if (msg.dfy === 'restore') C.restore(msg.mid), send({ ok: true });    });
 
-  if (!DFY.settings.enabled) return;
   // 设置加载前主世界可能已经送来过评论，让它重新送一次
-  window.postMessage({ source: 'dfy-iso', type: 'rescan' }, location.origin);
+  if (DFY.settings.enabled) window.postMessage({ source: 'dfy-iso', type: 'rescan' }, location.origin);
 
   // 空间主页鉴定（B 站空间是单页应用，路由变化时重新鉴定）
   let lastMid = '';
   const checkRoute = () => {
     const mid = DFY.space.midFromUrl();
-    if (mid && mid !== lastMid) {
+    if (DFY.settings.enabled && mid && mid !== lastMid) {
       lastMid = mid;
       setTimeout(() => DFY.space.run(), 800);
     }

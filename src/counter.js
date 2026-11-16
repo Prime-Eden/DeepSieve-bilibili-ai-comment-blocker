@@ -102,7 +102,7 @@
 
   /* 接口层（main-world）拦掉的评论不会进 DOM，计数从这里回传 */
   window.addEventListener('message', (e) => {
-    if (e.source !== window || !e.data || e.data.source !== 'dfy-main') return;
+    if (e.source !== window || e.origin !== location.origin || !e.data || e.data.source !== 'dfy-main') return;
     if (e.data.type === 'api-blocked') DFY.counter.add(e.data.roots || 0, e.data.replies || 0);
     else if (e.data.type === 'api-first') DFY.counter.reset(); // 换排序 / 换视频 / 刷新 → 首屏请求 → 归零
   });

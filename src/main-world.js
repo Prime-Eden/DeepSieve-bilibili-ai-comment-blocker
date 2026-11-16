@@ -67,7 +67,7 @@
         }
       }
     }
-    if (out.length) window.postMessage({ source: 'dfy-main', type: 'comments', items: out, upMid: upMid(), video: videoInfo() }, '*');
+    if (out.length) window.postMessage({ source: 'dfy-main', type: 'comments', items: out, upMid: upMid(), video: videoInfo() }, location.origin);
   }
 
   function visit(el, isReply, out) {
@@ -169,7 +169,7 @@
   } catch (e) {}
 
   window.addEventListener('message', (e) => {
-    if (e.source !== window || !e.data || e.data.source !== 'dfy-iso') return;
+    if (e.source !== window || e.origin !== location.origin || !e.data || e.data.source !== 'dfy-iso') return;
     if (e.data.type === 'rescan') {
       clearAttrs();
       schedule();
@@ -186,7 +186,7 @@
     } else if (e.data.type === 'ready') {
       // 内容脚本就绪：回放它在加载完成前错过的拦截事件（首屏请求早于 document_idle 的场景）
       isoReady = true;
-      while (pendingEarly.length) window.postMessage(pendingEarly.shift(), '*');
+      while (pendingEarly.length) window.postMessage(pendingEarly.shift(), location.origin);
     }
   });
 
@@ -194,7 +194,7 @@
   const pendingEarly = [];
   let isoReady = false;
   function emitEarly(payload) {
-    if (isoReady) return window.postMessage(payload, '*');
+    if (isoReady) return window.postMessage(payload, location.origin);
     if (pendingEarly.length < 60) pendingEarly.push(payload);
   }
 
@@ -407,7 +407,7 @@
             if (first) emitEarly({ source: 'dfy-main', type: 'api-first' });
             // 判定前置：渲染前把数据送识别引擎（响应体此刻刚被我们换掉，页面还没渲染）
             const scan = scanPayload(json, kind);
-            if (scan.length) window.postMessage({ source: 'dfy-main', type: 'pre-scan', items: scan.slice(0, 80), upMid: upMid(), video: videoInfo() }, '*');
+            if (scan.length) window.postMessage({ source: 'dfy-main', type: 'pre-scan', items: scan.slice(0, 80), upMid: upMid(), video: videoInfo() }, location.origin);
             if (!f || (!f.roots && !f.replies)) return res;
             let out;
             try {
@@ -459,7 +459,7 @@
         if (!rawBody) return (xhr.__dfyCache = null);
         const obj = isJson ? rawBody : JSON.parse(rawBody);
         const scan = scanPayload(obj, xhr.__dfyKind);
-        if (scan.length) window.postMessage({ source: 'dfy-main', type: 'pre-scan', items: scan.slice(0, 80), upMid: upMid(), video: videoInfo() }, '*');
+        if (scan.length) window.postMessage({ source: 'dfy-main', type: 'pre-scan', items: scan.slice(0, 80), upMid: upMid(), video: videoInfo() }, location.origin);
         const f = filterPayload(obj, xhr.__dfyKind);
         if (xhr.__dfyFirst) emitEarly({ source: 'dfy-main', type: 'api-first' });
         if (!f || (!f.roots && !f.replies)) return (xhr.__dfyCache = null);

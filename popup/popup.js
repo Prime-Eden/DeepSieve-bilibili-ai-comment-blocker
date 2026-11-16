@@ -284,47 +284,31 @@
   });
 
   /* ---------- 设置 ---------- */
-  // Firefox 要求把网页内容发给第三方前取得用户授权，Chrome 不需要这一步
-  function askConsent() {
-    try {
-      if (!chrome.runtime.getURL('').startsWith('moz-extension:')) return null;
-      return chrome.permissions.request({ data_collection: ['websiteContent'] });
-    } catch (e) {
-      return null;
-    }
-  }
+  // 精判开关：域名权限按需申请（optional_host_permissions）。
+  // permissions.request 必须在点击手势内同步发起，所以先调用、再 await；拒绝则回滚开关。
   for (const id of ['enabled', 'showCount', 'showBubble', 'llmEnabled', 'llmAuto', 'llmVision']) {
     $(id).onchange = () => {
       S.settings[id] = $(id).checked;
       save();
-      if (id === 'llmEnabled' && S.settings.llmEnabled && !S.settings.llmKey) showTab('ds');
-      const consent = id === 'llmEnabled' && S.settings.llmEnabled && askConsent();
-      if (consent)
-        consent.then(
-          async (ok) => {
-            if (!ok) {
-              S.settings.llmEnabled = false;
-              $(id).checked = false;
-              save();
-              return;
-            }
-            // 域名权限按需申请（optional_host_permissions）：拒绝则回滚精判开关
-            if (chrome.permissions && chrome.permissions.request) {
-              try {
-                const granted = await chrome.permissions.request({ origins: ['https://api.deepseek.com/*'] });
-                if (!granted) {
-                  S.settings.llmEnabled = false;
-                  $(id).checked = false;
-                  save();
-                  note('未授予 api.deepseek.com 域名权限，精判保持关闭', false);
-                }
-              } catch (e) {
-                /* 旧版内核不支持按需申请，保持开启；首次精判失败会在测试连接里提示 */
-              }
-            }
-          },
-          () => {}
-        );
+      if (id !== 'llmEnabled' || !S.settings.llmEnabled) return;
+      if (!S.settings.llmKey) showTab('ds');
+      let req = null;
+      try {
+        req = chrome.permissions.request({ origins: ['https://api.deepseek.com/*'] });
+      } catch (e) {
+        req = null;
+      }
+      if (!req) return; // 内核不支持按需申请：保持开启，首次精判失败会在测试连接里提示
+      req.then(
+        (granted) => {
+          if (granted) return;
+          S.settings.llmEnabled = false;
+          $(id).checked = false;
+          save();
+          note('未授予 api.deepseek.com 域名权限，精判保持关闭', false);
+        },
+        () => {}
+      );
     };
   }
   $('threshold').oninput = () => {
