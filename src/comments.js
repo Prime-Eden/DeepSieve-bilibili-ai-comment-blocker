@@ -13,6 +13,7 @@
   let upMid = '';
   let video = null; // {title, desc} 当前视频信息（main-world 传来）
   let aiTopic = false; // 当前视频是否 AI 话题（鱼极易出没，识别权重上下文）
+  let blockBtnLatch = false; // 一键拉黑按钮的视频内闩锁：一旦启用整个视频保持，不再随判鱼比例波动消失
   const AI_TOPIC_RE = /deep\s*seek|深度求索|大模型|AIGC|人工智能|\bAI\b|agent|智能体|桌宠|大肥鱼|鲸鱼娘|\bDSH\b|白饭|harness|claude|gpt|gemini|\bllm\b/i;
   let callout = new Map(); // mid -> 被几个人点名是大肥鱼
   let burst = new Map(); // ctime(秒) -> Set(mid)：同秒发评聚类（机器人排程痕迹）
@@ -67,6 +68,8 @@
       if (e.data.video) {
         video = e.data.video;
         aiTopic = AI_TOPIC_RE.test((video.title || '') + ' ' + (video.desc || ''));
+      blockBtnLatch = false;
+        blockBtnLatch = false;
       }
       for (const it of e.data.items || []) {
         const { a } = absorb(it);
@@ -81,6 +84,7 @@
     if (e.data.video) {
       video = e.data.video;
       aiTopic = AI_TOPIC_RE.test((video.title || '') + ' ' + (video.desc || ''));
+      blockBtnLatch = false;
     }
     const fresh = [];
     for (const it of e.data.items) {
@@ -198,7 +202,7 @@
 .dfy-sus .ks{border:0;background:transparent;color:inherit;opacity:.72;font:600 10.5px/16px -apple-system,BlinkMacSystemFont,\"PingFang SC\",\"Microsoft YaHei\",sans-serif;padding:0 7px;border-radius:999px;cursor:pointer;transition:background .12s ease,opacity .12s ease,color .12s ease}
 .dfy-sus .ks:hover{background:#c2455a;color:#fff;opacity:1}
 .dfy-blk{position:relative;display:inline-block;max-width:0;height:20px;padding:0;margin-left:0;opacity:0;overflow:hidden;white-space:nowrap;border-radius:999px;background:rgba(150,150,165,.16);color:inherit;font:600 11px/20px -apple-system,BlinkMacSystemFont,\"PingFang SC\",\"Microsoft YaHei\",sans-serif;cursor:pointer;border:none;vertical-align:middle;pointer-events:none;transition:max-width .18s ease 1s,opacity .18s ease 1s,padding .18s ease 1s,margin-left .18s ease 1s,background .12s ease,color .12s ease}
-.dfy-blk.show,:host(:hover) .dfy-blk{max-width:80px;padding:0 10px;margin-left:6px;opacity:1;pointer-events:auto;transition-delay:0s}
+.dfy-blk.show{max-width:80px;padding:0 10px;margin-left:6px;opacity:1;pointer-events:auto;transition-delay:0s}
 .dfy-blk:hover{background:#c2455a;color:#fff}
 .dfy-blk.undo{background:#2546b8;color:#fff}
 .dfy-blk.undo:hover{background:#1d3a9c}
@@ -253,6 +257,63 @@
       if (!susTip || susTip.style.display !== 'block') return;
       const path = e.composedPath ? e.composedPath() : [];
       if (path.some((n) => n.nodeType === 1 && n.hasAttribute && n.hasAttribute('data-dfy-sus'))) susTipHide();
+    },
+    true
+  );
+  // ---- 悬停定位：mousemove + 逐层 elementFromPoint ----
+  // B 站评论区是多层嵌套 shadow DOM：mouseover 的 target 是最深层文本元素，跨 shadow 边界时
+  // composedPath 与滚动触发的 hover 重算都不可靠（「经常不生效」的根因）。
+  // 改为：mousemove 记录坐标（节流 120ms）→ elementFromPoint 逐层穿透 → 爬升找评论 host；
+  // 悬停 400ms 显示按钮，悬停期间保持，切换评论立即隐藏；UP 主 / 白名单 / 已拉黑的评论没有按钮，天然豁免。
+  let mmX = -1, mmY = -1, mmTimer = 0, hoverHost = null, hoverTimer = 0;
+  const isCommentHost = (n) =>
+    n && n.nodeType === 1 && (n.tagName === 'BILI-COMMENT-RENDERER' || n.tagName === 'BILI-COMMENT-REPLY-RENDERER') && n.shadowRoot && n.shadowRoot.querySelector('.dfy-blk');
+  function deepFromPoint(x, y) {
+    let el = document.elementFromPoint(x, y);
+    for (let i = 0; el && el.shadowRoot && i < 8; i++) {
+      const inner = el.shadowRoot.elementFromPoint(x, y);
+      if (!inner || inner === el) break;
+      el = inner;
+    }
+    return el;
+  }
+  function climbComment(el) {
+    let n = el;
+    for (let i = 0; n && n.nodeType === 1 && i < 12; i++) {
+      if (isCommentHost(n)) return n;
+      n = n.host || n.parentElement;
+    }
+    return null;
+  }
+  function setHover(host) {
+    if (host === hoverHost) return;
+    if (hoverHost && hoverHost.shadowRoot) {
+      const old = hoverHost.shadowRoot.querySelector('.dfy-blk.show');
+      if (old && !old.classList.contains('undo')) old.classList.remove('show'); // 撤销态不被隐藏
+    }
+    clearTimeout(hoverTimer);
+    hoverHost = host;
+    if (host) hoverTimer = setTimeout(() => {
+      const b = host.shadowRoot && host.shadowRoot.querySelector('.dfy-blk');
+      if (b) b.classList.add('show');
+    }, 400);
+  }
+  document.addEventListener(
+    'mousemove',
+    (e) => {
+      if (!blockBtnActive) {
+        setHover(null);
+        return;
+      }
+      mmX = e.clientX;
+      mmY = e.clientY;
+      if (mmTimer) return;
+      mmTimer = setTimeout(() => {
+        mmTimer = 0;
+        try {
+          setHover(climbComment(deepFromPoint(mmX, mmY)));
+        } catch (err) {}
+      }, 120);
     },
     true
   );
@@ -568,10 +629,13 @@
     const toBlock = new Set();
     // 一键拉黑按钮启用态：on 常开 / off 关闭 / auto 按上下文（AI 话题视频或本页判鱼比例 ≥15%）
     const mode = DFY.settings.blockBtn || 'auto';
-    if (mode === 'auto') {
+    if (blockBtnLatch) {
+      blockBtnActive = true; // 视频内闩锁：启用过就保持，不随判鱼比例波动闪烁
+    } else if (mode === 'auto') {
       let fishN = 0;
       for (const a of accounts.values()) if (a.verdict && DFY.levelOf(a.verdict.score, DFY.settings.threshold) === 'fish') fishN++;
-      blockBtnActive = aiTopic || fishN >= 1; // 放宽：本页出现过判鱼即启用（原 15% 比例太紧，导致「停留无反应」）
+      blockBtnActive = aiTopic || fishN >= 1;
+      if (blockBtnActive) blockBtnLatch = true;
     } else blockBtnActive = mode === 'on';
     eachThread((th) => {
       const rootId = th.getAttribute('data-dfy-rpid');
