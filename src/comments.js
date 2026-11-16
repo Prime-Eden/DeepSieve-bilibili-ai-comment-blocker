@@ -16,7 +16,7 @@
   const AI_TOPIC_RE = /deep\s*seek|深度求索|大模型|AIGC|人工智能|\bAI\b|agent|智能体|桌宠|大肥鱼|鲸鱼娘|\bDSH\b|白饭|harness|claude|gpt|gemini|\bllm\b/i;
   let callout = new Map(); // mid -> 被几个人点名是大肥鱼
   let burst = new Map(); // ctime(秒) -> Set(mid)：同秒发评聚类（机器人排程痕迹）
-  const threadCounted = new Set(); // 已按整楼计过数的线程（去重）
+  const threadCounted = new Map(); // 已按整楼计过数的线程（去重）：rpid → 当时计入的楼中楼条数（放回来时按这个数撤回）
   const countedEls = new Set(); // 已计数/记入回收站的评论（配合主世界预隐藏去重）
 
   /* ---------------- 数据接收（main-world → 这里） ---------------- */
@@ -302,29 +302,33 @@
     blkEl.title = blkUndo ? '撤销这次拉黑' : '立即拉黑该账号（3 秒内可撤销，可在名单页恢复）';
   }
 
-  /** 把按钮放到该评论昵称行右侧（有疑似徽标则放徽标后面）；评论不可见时返回 false */
+  /** 把按钮放到该评论「操作行」（时间 · 点赞 · 回复那一行）的最右端，垂直居中于该行。
+   *  不放在昵称后面：楼中楼的昵称和正文常在同一行，按钮会压住正文；操作行右端是留白，不遮任何内容。
+   *  找不到操作行时退到评论框的右下角；评论没有完整落在视口内时返回 false。 */
   function blkPlace() {
     const el = blkAnchor;
     if (!el || !el.isConnected || !blkHost) return false;
     const base = el.localName === 'bili-comment-thread-renderer' ? rootElOf(el) : el;
     if (!base || base.style.display === 'none') return false;
+    const box = base.getBoundingClientRect();
+    if (!box.width || !box.height) return false;
     const sr = base.shadowRoot;
-    const info = sr && sr.querySelector('bili-comment-user-info');
-    let r = info ? info.getBoundingClientRect() : null;
-    if (r && r.width) {
-      const sus = sr.querySelector('.dfy-sus');
-      const sr2 = sus ? sus.getBoundingClientRect() : null;
-      r = { left: r.left, top: r.top, right: Math.max(r.right, sr2 && sr2.width ? sr2.right : 0), height: r.height };
-    } else {
-      const b = base.getBoundingClientRect();
-      if (!b.width) return false;
-      r = { left: b.left, top: b.top, right: b.left + 120, height: 24 };
-    }
-    if (r.top < 0 || r.top + r.height > window.innerHeight) return false; // 昵称行没完整露出：不出按钮（钳制后会脱离评论悬在屏幕边缘）
+    const bar = sr && sr.querySelector('bili-comment-action-buttons-renderer');
+    const ar = bar ? bar.getBoundingClientRect() : null;
     blkHost.style.display = '';
     const w = blkEl.offsetWidth, h = blkEl.offsetHeight;
-    const x = Math.max(8, Math.min(r.right + 8, window.innerWidth - w - 8));
-    const y = Math.max(8, Math.min(r.top + (r.height - h) / 2, window.innerHeight - h - 8));
+    let x, y;
+    if (ar && ar.height) {
+      if (ar.top < 0 || ar.bottom > window.innerHeight) return false; // 操作行没完整露出：不出按钮
+      x = box.right - w - 6;
+      y = ar.top + (ar.height - h) / 2;
+    } else {
+      if (box.top < 0 || box.bottom > window.innerHeight) return false;
+      x = box.right - w - 6;
+      y = box.bottom - h - 8;
+    }
+    x = Math.max(8, Math.min(x, window.innerWidth - w - 8));
+    y = Math.max(8, Math.min(y, window.innerHeight - h - 8));
     blkHost.style.transform = `translate(${Math.round(x)}px, ${Math.round(y)}px)`;
     return true;
   }
@@ -584,6 +588,17 @@
         .map((r) => `${r.why}${r.w ? `(${r.w > 0 ? '+' : ''}${r.w})` : ''}`),
     };
   };
+  /** 评论被放回来（取消屏蔽 / 加白名单 / 调阈值）：计数与会话记录一并撤回，悬浮台、计数条、设置面板才与实际一致。
+   *  此前只从「已计数」集合里删了标记，计数和记录都不动，于是手动解除之后悬浮台还挂着旧记录。
+   *  跨会话的「隐藏总记录」是审计日志，不回删；接口层拦截的记录（src=api）在刷新前确实仍是隐藏态，保留。 */
+  function uncount(id, roots, replies) {
+    if (!id) return;
+    DFY.counter.add(-roots, -replies);
+    for (let i = removedLog.length - 1; i >= 0; i--) {
+      if (String(removedLog[i].id) === String(id) && removedLog[i].src !== 'api') removedLog.splice(i, 1);
+    }
+    if (DFY.bubble && DFY.bubble.sync) DFY.bubble.sync();
+  }
   function logRemoved(entry) {
     if (!entry.id && !entry.mid) return;
     entry.t = Date.now();
@@ -741,12 +756,18 @@
         if ((rootFish || (policy === 'thread' && anyReplyFish)) && !rootGraced) {
           // data-dfy-pre = 主世界已在绘制前隐藏过，这里只补记账
           if ((hideEl(th) || th.hasAttribute('data-dfy-pre')) && !threadCounted.has(rootId)) {
-            threadCounted.add(rootId);
-            DFY.counter.add(1, Math.max((rootIt && rootIt.rcount) || 0, reps.length));
+            const repN = Math.max((rootIt && rootIt.rcount) || 0, reps.length);
+            threadCounted.set(rootId, repN);
+            DFY.counter.add(1, repN);
             const feats = featsOf(rootAcc);
             logRemoved({ id: rootId, mid: rootIt && rootIt.mid, name: rootAcc ? rootAcc.acc.uname : '', text: ((rootIt && rootIt.text) || '').slice(0, 500), src: 'dom', score: feats.sc, feats: feats.f });
           }
         } else {
+          if (threadCounted.has(rootId)) {
+            const n = threadCounted.get(rootId);
+            threadCounted.delete(rootId);
+            uncount(rootId, 1, n);
+          }
           th.removeAttribute('data-dfy-pre');
           showEl(th);
           const cr0 = rootElOf(th);
@@ -770,7 +791,7 @@
           th.removeAttribute('data-dfy-pre');
           showEl(cr);
           syncSuspect(cr, rootAcc);
-          countedEls.delete(rootId);
+          if (countedEls.delete(rootId)) uncount(rootId, 1, 0);
         } else if ((hideEl(cr) || th.hasAttribute('data-dfy-pre')) && !countedEls.has(rootId)) {
           countedEls.add(rootId);
           DFY.counter.add(1, 0);
@@ -781,7 +802,7 @@
         th.removeAttribute('data-dfy-pre');
         showEl(cr);
         syncSuspect(cr, rootAcc); // suspect 级：不隐藏，昵称旁挂疑似徽标
-        countedEls.delete(rootId);
+        if (countedEls.delete(rootId)) uncount(rootId, 1, 0);
       }
       for (const x of reps) {
         if (x.fish) {
@@ -790,7 +811,7 @@
             x.el.removeAttribute('data-dfy-pre');
             showEl(x.el);
             syncSuspect(x.el, x.a);
-            countedEls.delete(x.id);
+            if (countedEls.delete(x.id)) uncount(x.id, 0, 1);
           } else if ((hideEl(x.el) || x.el.hasAttribute('data-dfy-pre')) && !countedEls.has(x.id)) {
             countedEls.add(x.id);
             DFY.counter.add(0, 1);
@@ -801,7 +822,7 @@
           x.el.removeAttribute('data-dfy-pre');
           showEl(x.el);
           syncSuspect(x.el, x.a);
-          countedEls.delete(x.id);
+          if (countedEls.delete(x.id)) uncount(x.id, 0, 1);
         }
       }
     });

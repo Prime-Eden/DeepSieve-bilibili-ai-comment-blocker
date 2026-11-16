@@ -23,6 +23,7 @@
 .dot.dragging{transform:scale(1.08);box-shadow:0 0 0 2px rgba(255,255,255,.95),0 12px 28px rgba(20,28,60,.42)}
 .dot svg{display:block;pointer-events:none}
 .badge{position:absolute;top:-6px;right:-6px;min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:#e0566b;color:#fff;font:700 10.5px/18px -apple-system,BlinkMacSystemFont,\"PingFang SC\",\"Microsoft YaHei\",sans-serif;text-align:center;box-shadow:0 2px 6px rgba(0,0,0,.3);pointer-events:none;display:none;font-variant-numeric:tabular-nums}
+.wrap.dock-r .badge{right:auto;left:-6px}
 .kill{position:absolute;top:-7px;left:-7px;width:18px;height:18px;border-radius:50%;background:rgba(31,35,41,.92);color:#fff;border:none;cursor:pointer;display:none;align-items:center;justify-content:center;font-size:11px;line-height:1;box-shadow:0 2px 6px rgba(0,0,0,.35);padding:0}
 .dot:hover .kill{display:flex}
 .hint-bubble{position:absolute;right:0;bottom:calc(100% + 12px);white-space:nowrap;padding:8px 13px;border-radius:10px;background:#1f2329;color:#fff;font:500 12.5px/1.5 -apple-system,BlinkMacSystemFont,\"PingFang SC\",\"Microsoft YaHei\",sans-serif;box-shadow:0 8px 24px rgba(0,0,0,.3);pointer-events:none;transition:opacity .2s}

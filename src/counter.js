@@ -88,8 +88,8 @@
     replies: 0,
     add(r, s) {
       if (!r && !s) return;
-      this.roots += r || 0;
-      this.replies += s || 0;
+      this.roots = Math.max(0, this.roots + (r || 0));
+      this.replies = Math.max(0, this.replies + (s || 0));
       requestAnimationFrame(draw);
     },
     total() {
