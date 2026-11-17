@@ -264,13 +264,14 @@
   const BLK_DWELL = { auto: 1000, on: 0 }; // 自动：停留 1 秒；常开：立即
   const BLK_CSS = `
 :host{all:initial}
-.b{box-sizing:border-box;height:22px;padding:0 11px;border:1px solid rgba(16,24,40,.12);border-radius:999px;background:rgba(255,255,255,.97);color:#475467;font:600 11.5px/20px -apple-system,BlinkMacSystemFont,\"PingFang SC\",\"Microsoft YaHei\",sans-serif;cursor:pointer;white-space:nowrap;position:relative;overflow:hidden;box-shadow:0 2px 8px rgba(16,24,40,.14);animation:in .12s ease-out;transition:background .12s,color .12s,border-color .12s}
-.b.dk{background:rgba(38,40,48,.97);border-color:rgba(255,255,255,.16);color:#d0d5dd}
+.b{box-sizing:border-box;display:inline-flex;align-items:center;gap:4px;height:24px;padding:0 11px 0 9px;border:1px solid rgba(194,69,90,.38);border-radius:999px;background:rgba(194,69,90,.1);color:#c2455a;font:600 12px/22px -apple-system,BlinkMacSystemFont,\"PingFang SC\",\"Microsoft YaHei\",sans-serif;cursor:pointer;white-space:nowrap;position:relative;overflow:hidden;box-shadow:0 2px 8px rgba(194,69,90,.16);animation:in .14s ease-out;transition:background .12s,color .12s,border-color .12s}
+.b svg{flex:none;pointer-events:none}
+.b.dk{background:rgba(224,112,127,.16);border-color:rgba(224,112,127,.45);color:#f0919f}
 .b:hover{background:#c2455a;border-color:#c2455a;color:#fff}
-.b.undo,.b.undo.dk{background:#2546b8;border-color:#2546b8;color:#fff}
+.b.undo,.b.undo.dk{background:#2546b8;border-color:#2546b8;color:#fff;box-shadow:0 2px 8px rgba(37,70,184,.3)}
 .b.undo:hover{background:#1d3a9c;border-color:#1d3a9c}
 .b.undo::after{content:"";position:absolute;left:0;bottom:0;height:2px;width:100%;background:rgba(255,255,255,.75);transform-origin:left;animation:burn 3s linear forwards}
-@keyframes in{from{opacity:0;transform:translateY(2px)}to{opacity:1;transform:none}}
+@keyframes in{from{opacity:0;transform:translateX(-4px)}to{opacity:1;transform:none}}
 @keyframes burn{from{transform:scaleX(1)}to{transform:scaleX(0)}}
 @media (prefers-reduced-motion: reduce){.b{animation:none}.b.undo::after{display:none}}
 `;
@@ -298,13 +299,75 @@
   function blkRender() {
     blkEl.classList.toggle('undo', blkUndo);
     blkEl.classList.toggle('dk', blkDark());
-    blkEl.textContent = blkUndo ? '撤销' : '拉黑';
+    // 静态字符串，仅写入我们自己的 shadow DOM
+    blkEl.innerHTML = blkUndo
+      ? '撤销'
+      : '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M5.6 5.6l12.8 12.8"/></svg>拉黑';
     blkEl.title = blkUndo ? '撤销这次拉黑' : '立即拉黑该账号（3 秒内可撤销，可在名单页恢复）';
   }
 
-  /** 把按钮放到该评论「操作行」（时间 · 点赞 · 回复那一行）的最右端，垂直居中于该行。
-   *  不放在昵称后面：楼中楼的昵称和正文常在同一行，按钮会压住正文；操作行右端是留白，不遮任何内容。
-   *  找不到操作行时退到评论框的右下角；评论没有完整落在视口内时返回 false。 */
+  /* ---- 找评论的「操作行」（时间 · 点赞 · 回复），按钮贴在它旁边 ----
+   * 不依赖 B 站某个具体的组件名：先找 bili-comment-action-buttons-renderer，再退到「文字恰好是 回复 的叶子节点」，
+   * 都找不到才用评论框右上角（昵称行末端）。按钮放在操作行最后一个可见元素之后 12px，即紧贴「回复」。 */
+  const BLK_SKIP = { style: 1, script: 1, 'bili-rich-text': 1, 'bili-comment-replies-renderer': 1 };
+  function walkLeaves(node, depth, fn) {
+    if (!node || depth > 6) return;
+    for (const el of node.children || []) {
+      const n = el.localName;
+      if (BLK_SKIP[n]) continue;
+      if (el.shadowRoot) walkLeaves(el.shadowRoot, depth + 1, fn);
+      if (el.children.length === 0 || n === 'button' || n === 'svg') fn(el);
+      else walkLeaves(el, depth + 1, fn);
+    }
+  }
+  /** 返回 { right, cy }：操作行里最后一个可见元素的右缘与垂直中线（视口坐标）；找不到返回 null */
+  function actionRow(base) {
+    const sr = base.shadowRoot;
+    if (!sr) return null;
+    const measure = (root) => {
+      let last = null, reply = null;
+      walkLeaves(root, 0, (el) => {
+        const r = el.getBoundingClientRect();
+        if (!r.width || !r.height) return;
+        if (el.textContent && el.textContent.trim() === '回复') reply = r;
+        if (!last || r.right > last.right) last = r;
+      });
+      const r = reply || last; // 有「回复」就贴它，否则贴最右的可见元素
+      return r ? { right: r.right, cy: r.top + r.height / 2 } : null;
+    };
+    const bar = sr.querySelector('bili-comment-action-buttons-renderer');
+    let row = bar ? measure(bar.shadowRoot || bar) : null;
+    if (!row) {
+      let reply = null;
+      walkLeaves(sr, 0, (el) => {
+        if (reply || !el.textContent || el.textContent.trim() !== '回复') return;
+        const r = el.getBoundingClientRect();
+        if (r.width && r.height) reply = r;
+      });
+      if (reply) row = { right: reply.right, cy: reply.top + reply.height / 2 };
+    }
+    return row;
+  }
+  /** 评论结构摘要（找不到操作行时打到控制台一次，方便按真实结构调整） */
+  let blkOutlined = false;
+  function blkOutline(base) {
+    if (blkOutlined) return;
+    blkOutlined = true;
+    const lines = [];
+    const walk = (node, depth) => {
+      if (depth > 6 || lines.length > 80) return;
+      for (const el of node.children || []) {
+        const r = el.getBoundingClientRect();
+        lines.push(`${'  '.repeat(depth)}${el.localName}${el.id ? '#' + el.id : ''}${el.shadowRoot ? ' [shadow]' : ''} ${Math.round(r.width)}x${Math.round(r.height)}`);
+        if (el.shadowRoot) walk(el.shadowRoot, depth + 1);
+        walk(el, depth + 1);
+      }
+    };
+    if (base.shadowRoot) walk(base.shadowRoot, 0);
+    console.info('[DeepSieve] 没找到评论操作行（时间·点赞·回复），拉黑按钮暂放在评论框右上角。评论结构如下，反馈给开发者即可：\n' + lines.join('\n'));
+  }
+
+  /** 把按钮放到该评论操作行里「回复」的右边；评论没有完整落在视口内返回 false */
   function blkPlace() {
     const el = blkAnchor;
     if (!el || !el.isConnected || !blkHost) return false;
@@ -312,22 +375,22 @@
     if (!base || base.style.display === 'none') return false;
     const box = base.getBoundingClientRect();
     if (!box.width || !box.height) return false;
-    const sr = base.shadowRoot;
-    const bar = sr && sr.querySelector('bili-comment-action-buttons-renderer');
-    const ar = bar ? bar.getBoundingClientRect() : null;
     blkHost.style.display = '';
     const w = blkEl.offsetWidth, h = blkEl.offsetHeight;
     let x, y;
-    if (ar && ar.height) {
-      if (ar.top < 0 || ar.bottom > window.innerHeight) return false; // 操作行没完整露出：不出按钮
-      x = box.right - w - 6;
-      y = ar.top + (ar.height - h) / 2;
+    const row = actionRow(base);
+    if (row) {
+      x = row.right + 12;
+      y = row.cy - h / 2;
     } else {
-      if (box.top < 0 || box.bottom > window.innerHeight) return false;
+      blkOutline(base);
+      const info = base.shadowRoot && base.shadowRoot.querySelector('bili-comment-user-info');
+      const ir = info ? info.getBoundingClientRect() : null;
       x = box.right - w - 6;
-      y = box.bottom - h - 8;
+      y = ir && ir.height ? ir.top + (ir.height - h) / 2 : box.top + 6;
     }
-    x = Math.max(8, Math.min(x, window.innerWidth - w - 8));
+    if (y < 0 || y + h > window.innerHeight) return false; // 目标行没完整露出：不出按钮
+    x = Math.max(8, Math.min(x, box.right - w - 6, window.innerWidth - w - 8));
     y = Math.max(8, Math.min(y, window.innerHeight - h - 8));
     blkHost.style.transform = `translate(${Math.round(x)}px, ${Math.round(y)}px)`;
     return true;
