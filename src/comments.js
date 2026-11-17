@@ -152,6 +152,15 @@
     // 只凭本页证据就够得上大肥鱼时才记前科（名单、精判、屏蔽词都不算，避免自我强化）
     if (off.raw >= DFY.settings.threshold && (!a.llm || a.llm.ai >= 50) && !wordHit) DFY.memory.mark(mid, a.acc.uname);
   }
+  /** 只重判指定账号：名单纯新增（别的标签页 / 本页自动累积）时用，免去全量重判与全量重扫 */
+  C.rejudgeMids = function (mids) {
+    for (const mid of mids) {
+      const a = accounts.get(String(mid));
+      if (a) judge(a);
+    }
+    sendFishVerdicts();
+    C.render();
+  };
   C.rejudgeAll = function () {
     for (const a of accounts.values()) judge(a);
     sendFishVerdicts();
@@ -546,6 +555,14 @@
   async function blockMids(mids, score, opts = {}) {
     const list = [...mids].filter((mid) => !DFY.lists.white[mid]);
     if (!list.length) return 0;
+    if (opts.grace) {
+      // 撤销窗口必须在写名单之前建立：名单写入会触发存储事件 → 重判 → 渲染，若 grace 还没登记，评论会先隐藏再弹回
+      for (const mid of list) grace.set(mid, Date.now() + 3000);
+      setTimeout(() => {
+        for (const mid of list) grace.delete(mid);
+        C.render(); // 撤销窗口结束：真正隐藏 + 计数 + 记录
+      }, 3300);
+    }
     const entries = {};
     const stats = {}; // 人工确认特征计数：宁滥勿放的温和强化回路
     for (const mid of list) {
@@ -571,13 +588,6 @@
     if (DFY.bubble && DFY.bubble.flash) {
       const kinds = Object.keys(stats).length;
       DFY.bubble.flash(opts.grace ? `已拉黑（3 秒内可撤销）· 特征强化 ${kinds} 类` : list.length > 1 ? `已拉黑 ${list.length} 个账号 · 特征强化 ${kinds} 类` : `已拉黑 · 特征强化 +${kinds || 1}`);
-    }
-    if (opts.grace) {
-      for (const mid of list) grace.set(mid, Date.now() + 3000);
-      setTimeout(() => {
-        for (const mid of list) grace.delete(mid);
-        C.render(); // 撤销窗口结束：真正隐藏 + 计数 + 记录
-      }, 3300);
     }
     return list.length;
   }
@@ -905,6 +915,26 @@
     });
   }
   C.showAll = showAll;
+
+  /** 换页（pathname 变化，如 SPA 切视频）：旧页面的评论数据、会话记录一并清掉，并让主世界重送一遍当前 DOM 里的评论。
+   *  之前只有计数条归零，悬浮台「最近隐藏」仍挂着上一个视频的记录，items / accounts 也只增不减。 */
+  C.resetPage = function () {
+    items.clear();
+    accounts.clear();
+    burst = new Map();
+    callout = new Map();
+    countedEls.clear();
+    threadCounted.clear();
+    llmDone.clear();
+    grace.clear();
+    removedLog.length = 0;
+    upMid = '';
+    video = null;
+    aiTopic = false;
+    blkHide();
+    sendFishVerdicts(); // 空集合：主世界预隐藏名单一并清空
+    window.postMessage({ source: 'dfy-iso', type: 'rescan' }, location.origin);
+  };
 
   C.clear = function () {
     C.rejudgeAll();

@@ -89,7 +89,9 @@
       } catch (e) {}
     }, delay);
   }
-  setInterval(schedule, 1500);
+  setInterval(() => {
+    if (!document.hidden) schedule(); // 后台标签页不空转
+  }, 1500);
 
   // 评论组件一挂载 / 一更新就立刻扫描，不用等轮询。
   // wrapped 里做「预隐藏」：隔离世界已判定为鱼且经 pre-scan 同步过来的账号，
@@ -178,8 +180,10 @@
       try {
         localStorage.setItem(LS_KEY, JSON.stringify(e.data.rules));
       } catch (err) {}
-      clearAttrs();
-      schedule();
+      if (e.data.rescan !== false) {
+        clearAttrs();
+        schedule();
+      }
     } else if (e.data.type === 'verdicts') {
       // 隔离世界同步来的判定结果：主世界据此在挂载回调里预隐藏
       fishSet = new Set((e.data.f || []).map(String));
@@ -387,7 +391,7 @@
       if (!kind) return promise;
       const first = kind === 1 && isFirstPageReq(url);
       return promise.then((res) => {
-        if (!res || !res.ok) return res;
+        if (!res || !res.ok || !RULES.on) return res; // 插件停用：不克隆、不解析、不打分
         return res
           .clone()
           .text()
@@ -483,7 +487,7 @@
     const send = proto.send;
     proto.send = function () {
       const xhr = this;
-      if (xhr.__dfyKind) {
+      if (xhr.__dfyKind && RULES.on) {
         try {
           Object.defineProperty(xhr, 'responseText', {
             configurable: true,

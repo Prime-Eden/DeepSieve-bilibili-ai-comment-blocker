@@ -31,11 +31,12 @@
   if (window.top !== window) return;
 
   /* 拦截规则下发（主世界）+ localStorage 快照（下次打开页面立即生效，老名单零闪烁） */
-  function broadcastRules() {
+  function broadcastRules(rescan = true) {
     try {
       window.postMessage({
         source: 'dfy-iso',
         type: 'rules',
+        rescan, // false = 只更新拦截规则，不必让主世界清标记重送全部评论（名单纯新增时）
         rules: { e: !!DFY.settings.enabled, b: Object.keys(DFY.lists.block || {}), w: Object.keys(DFY.lists.white || {}), words: DFY.customWords || [], p: (DFY.settings && DFY.settings.subPolicy) || 'fish' },
       }, location.origin);
     } catch (e) {}
@@ -64,14 +65,31 @@
       DFY.compileWords(DFY.customWords);
       DFY.comments.rejudgeAll();
     }
-    if (ch.blocklist) DFY.lists.block = ch.blocklist || {};
+    // 屏蔽名单变化先做差集：纯新增（本页自动累积 / 别的标签页拉黑）不必全量重判 + 全量重扫
+    let added = null;
+    if (ch.blocklist) {
+      const old = DFY.lists.block || {};
+      const next = ch.blocklist || {};
+      added = [];
+      for (const k in next) if (!(k in old)) added.push(k);
+      for (const k in old) {
+        if (!(k in next)) {
+          added = null; // 有移除 → 走完整路径
+          break;
+        }
+      }
+      DFY.lists.block = next;
+    }
     if (ch.whitelist) DFY.lists.white = ch.whitelist || {};
     if (ch.manualStats) DFY.manualStats = ch.manualStats || {};
     if ('seen' in ch) DFY.memory.seen = ch.seen || {};
     if ('llmCache' in ch) DFY.memory.llm = ch.llmCache || {};
-    if (ch.blocklist || ch.whitelist) DFY.comments.rejudgeAll();
+    const additiveOnly = !!(ch.blocklist && added && !ch.whitelist && !ch.customWords && !ch.settings);
+    if (additiveOnly) {
+      if (added.length) DFY.comments.rejudgeMids(added);
+    } else if (ch.blocklist || ch.whitelist) DFY.comments.rejudgeAll();
     // 只有规则相关变更（名单/屏蔽词/设置）才全量下发；日志、前科、统计等高频写入不再触发
-    if (ch.blocklist || ch.whitelist || ch.customWords || ch.settings) broadcastRules();
+    if (ch.blocklist || ch.whitelist || ch.customWords || ch.settings) broadcastRules(!additiveOnly);
   });
 
   // popup / 快捷键

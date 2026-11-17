@@ -111,11 +111,13 @@
   });
 
   /* 切视频 / SPA 路由变化时归零（DOM 层没有首屏请求信号，用 URL 近似）；顺带响应 showCount 开关 */
-  let lastHref = location.href;
+  // 只看 pathname：#reply 锚点、?p= 分P 这类变化评论区还是同一批，不能当成换页（旧写法用整条 href，点评论永久链接就会把计数清零）
+  let lastPath = location.pathname;
   setInterval(() => {
-    if (location.href !== lastHref) {
-      lastHref = location.href;
+    if (location.pathname !== lastPath) {
+      lastPath = location.pathname;
       DFY.counter.reset();
+      if (DFY.comments && DFY.comments.resetPage) DFY.comments.resetPage();
     }
     if (DFY.settings && !DFY.settings.showCount) {
       if (host) host.remove();

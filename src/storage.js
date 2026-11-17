@@ -157,21 +157,30 @@
       this.timer = setTimeout(async () => {
         const { seen: ps, llm: pl } = this.pending;
         this.pending = { seen: {}, llm: {} };
-        const cur = await DFY.store.get(['seen', 'llmCache']);
-        for (const [mid, s] of Object.entries(ps)) {
-          const old = cur.seen[mid];
-          if (old) {
-            const k = [...new Set([...s.k, ...old.k])].slice(0, 6);
-            s.c = Math.max(s.c, old.c, k.length);
-            s.k = k;
+        // 只读写有变化的键：以前每次都把 seen（≤6000 条）和 llmCache（≤3000 条）两份整表读出来再整表写回，
+        // 即使只新增了一条前科；每次写入还会把新旧两份完整值广播给所有 B 站标签页（onChanged）
+        const hasSeen = Object.keys(ps).length > 0, hasLlm = Object.keys(pl).length > 0;
+        if (!hasSeen && !hasLlm) return;
+        const cur = await DFY.store.get([...(hasSeen ? ['seen'] : []), ...(hasLlm ? ['llmCache'] : [])]);
+        const out = {};
+        if (hasSeen) {
+          for (const [mid, s] of Object.entries(ps)) {
+            const old = cur.seen[mid];
+            if (old) {
+              const k = [...new Set([...s.k, ...old.k])].slice(0, 6);
+              s.c = Math.max(s.c, old.c, k.length);
+              s.k = k;
+            }
+            cur.seen[mid] = s;
           }
-          cur.seen[mid] = s;
+          this.seen = out.seen = prune(cur.seen, SEEN_MAX);
         }
-        Object.assign(cur.llmCache, pl);
-        for (const [k, v] of Object.entries(cur.llmCache)) if (Date.now() - v.t > LLM_TTL) delete cur.llmCache[k];
-        this.seen = prune(cur.seen, SEEN_MAX);
-        this.llm = prune(cur.llmCache, LLM_MAX);
-        await DFY.store.set({ seen: this.seen, llmCache: this.llm });
+        if (hasLlm) {
+          Object.assign(cur.llmCache, pl);
+          for (const [k, v] of Object.entries(cur.llmCache)) if (Date.now() - v.t > LLM_TTL) delete cur.llmCache[k];
+          this.llm = out.llmCache = prune(cur.llmCache, LLM_MAX);
+        }
+        await DFY.store.set(out);
       }, 2000);
     },
   };
