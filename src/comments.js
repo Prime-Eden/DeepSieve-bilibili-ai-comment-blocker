@@ -144,9 +144,15 @@
       score = 99;
       reasons.unshift({ w: 99, why: '命中自定义屏蔽词' });
     }
-    if (DFY.lists.block[mid]) {
+    // UP 主本人：自动累积的屏蔽记录不生效（避免 UP 在别处被误判后，自己视频下的发言全被拦掉）；
+    // 但用户明确拉黑过（m:1）则照常屏蔽——自动判定不动 UP，明确操作优先。接口层用同一条规则（见 main-world.js）。
+    const blk = DFY.lists.block[mid];
+    const isUp = !!upMid && String(mid) === String(upMid);
+    if (blk && !(isUp && !blk.m)) {
       score = Math.max(score, 99);
-      reasons.unshift({ w: 99, why: '已在屏蔽名单里' });
+      reasons.unshift({ w: 99, why: blk.m ? '已在屏蔽名单里（手动）' : '已在屏蔽名单里' });
+    } else if (blk && isUp) {
+      reasons.unshift({ w: 0, why: 'UP 主本人：自动累积的屏蔽记录不生效（手动拉黑才生效）' });
     }
     a.verdict = { score, offline: off.score, level: DFY.levelOf(score, DFY.settings.threshold), reasons };
     // 只凭本页证据就够得上大肥鱼时才记前科（名单、精判、屏蔽词都不算，避免自我强化）
@@ -421,7 +427,7 @@
     blkPending = '';
     const it = items.get(rpid);
     const a = it && accounts.get(String(it.mid));
-    if (!a || !a.acc || !a.acc.mid || String(a.acc.mid) === String(upMid)) return; // UP 主自己不出按钮
+    if (!a || !a.acc || !a.acc.mid) return;
     blkEnsure();
     blkAnchor = el;
     blkMid = String(a.acc.mid);
@@ -568,7 +574,7 @@
     for (const mid of list) {
       const a = accounts.get(mid);
       const acc = a ? a.acc : null;
-      entries[mid] = { n: acc ? acc.uname : '', a: acc ? acc.avatar : '', t: Date.now(), s: score == null ? (a && a.verdict ? a.verdict.score : 0) : score };
+      entries[mid] = { n: acc ? acc.uname : '', a: acc ? acc.avatar : '', t: Date.now(), s: score == null ? (a && a.verdict ? a.verdict.score : 0) : score, m: 1 }; // m:1 = 用户明确操作
       const rs = (a && a.verdict && a.verdict.reasons) || [];
       // 基础比例校准：Lv/头像/号段这类账号静态特征几乎人人有份，学了只会推高误杀；只学文本与行为特征
       const skip = new Set(['manual', 'level', 'avatar', 'mid']);
@@ -579,7 +585,7 @@
       if (Object.keys(stats).length) await DFY.callBg({ type: 'ms-add', tags: stats });
     }
     for (const mid of list) {
-      DFY.lists.block[mid] = DFY.lists.block[mid] || { t: Date.now() };
+      DFY.lists.block[mid] = Object.assign(DFY.lists.block[mid] || { t: Date.now() }, { m: 1 });
       const a = accounts.get(mid);
       if (a) judge(a);
     }
@@ -811,14 +817,14 @@
       const rootIt = rootId && items.get(rootId);
       const rootAcc = rootIt ? accounts.get(rootIt.mid) : null;
       const rootFish = isFishAcc(rootAcc);
-      if (rootFish && rootAcc && !DFY.lists.block[rootAcc.acc.mid]) toBlock.add(rootAcc);
+      if (rootFish && rootAcc && !DFY.lists.block[rootAcc.acc.mid] && String(rootAcc.acc.mid) !== String(upMid)) toBlock.add(rootAcc);
 
       const reps = repliesOf(th).map((el) => {
         const id = el.getAttribute('data-dfy-rpid');
         const it = id && items.get(id);
         const a = it ? accounts.get(it.mid) : null;
         const level = a && a.verdict ? a.verdict.level : 'human';
-        if (level === 'fish' && !DFY.lists.block[a.acc.mid]) toBlock.add(a);
+        if (level === 'fish' && !DFY.lists.block[a.acc.mid] && String(a.acc.mid) !== String(upMid)) toBlock.add(a);
         return { el, id, it, a, fish: level === 'fish', sus: level === 'suspect' };
       });
       const anyReplyFish = reps.some((x) => x.fish);

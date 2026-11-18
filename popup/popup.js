@@ -48,6 +48,17 @@
     ignore: '只判定和隐藏一级评论，楼中楼原样保留。',
   };
 
+  /* 识别灵敏度：滑块方向与文字一致——「严格」= 稍有痕迹就隐藏 = 隐藏门槛低；「宽松」= 证据确凿才隐藏 = 门槛高。
+   * 以前滑块最右（严格）对应门槛 80%，和悬浮台里的「严格 = 50%」相反，说明文字也只讲分数、不讲后果。 */
+  const TH_MIN = 45, TH_MAX = 80;
+  const thLabel = (t) => (t >= 65 ? '宽松' : t >= 55 ? '标准' : '严格');
+  function renderTh(t) {
+    $('threshold').value = TH_MIN + TH_MAX - t;
+    $('th-val').textContent = `${thLabel(t)} · 门槛 ${t}%`;
+    const sus = Math.max(25, t - 25);
+    $('th-hint').textContent = `账号的「AI 嫌疑分」达到 ${t}% 就隐藏；${sus}%–${t - 1}% 只标「可疑」，不隐藏。越严格，门槛越低：稍有痕迹就隐藏，但误杀也更多；越宽松，门槛越高：只隐藏证据确凿的。`;
+  }
+
   function renderSettings() {
     const s = S.settings;
     $('enabled').checked = !!s.enabled;
@@ -56,9 +67,7 @@
     $('llmEnabled').checked = !!s.llmEnabled;
     $('llmAuto').checked = !!s.llmAuto;
     $('llmVision').checked = !!s.llmVision;
-    $('threshold').value = s.threshold;
-    $('th-val').textContent = s.threshold + '%';
-    $('th-hint').textContent = `评分 ≥ ${s.threshold}% 判为大肥鱼立即隐藏；${Math.max(25, s.threshold - 25)}% 起算可疑。低于阈值不会隐藏，可疑账号只作为 DeepSeek 复核候选。`;
+    renderTh(s.threshold);
     for (const b of $('sub-policy').children) b.classList.toggle('on', b.dataset.v === (s.subPolicy || 'fish'));
     for (const b of $('block-btn').children) b.classList.toggle('on', b.dataset.v === (s.blockBtn || 'auto'));
     $('sub-hint').textContent = SUB_HINT[s.subPolicy || 'fish'];
@@ -205,7 +214,7 @@
               `<li><a class="n" href="https://space.bilibili.com/${esc(x.mid || '')}" target="_blank">${esc(x.name || x.mid || '未知账号')}</a><span class="d" title="${esc(x.text || '')}">${esc((x.text || '').slice(0, 18))}${x.src === 'api' ? ' · 拦截' : ''}</span><button data-rb="${esc(x.mid || '')}">恢复</button></li>`
           )
           .join('')
-      : '<li class="empty">本页还没有隐藏过评论</li>';
+      : '<li class="empty">这个页面还没有隐藏过评论</li>';
   }
   $('rb-export').onclick = () => {
     if (!lastRemoved.length) return;
@@ -313,9 +322,8 @@
     };
   }
   $('threshold').oninput = () => {
-    S.settings.threshold = +$('threshold').value;
-    $('th-val').textContent = S.settings.threshold + '%';
-    $('th-hint').textContent = `评分 ≥ ${S.settings.threshold}% 判为大肥鱼立即隐藏；${Math.max(25, S.settings.threshold - 25)}% 起算可疑。低于阈值不会隐藏，可疑账号只作为 DeepSeek 复核候选。`;
+    S.settings.threshold = TH_MIN + TH_MAX - +$('threshold').value; // 滑块向右 = 更严格 = 门槛更低
+    renderTh(S.settings.threshold);
   };
   $('threshold').onchange = save;
   // 评论一键屏蔽三档（此前只有 HTML 没有事件绑定，选项点了没反应、当前档位也不高亮）
@@ -528,15 +536,15 @@
           .slice(0, 300)
           .map(
             ([mid, v]) =>
-              `<li>${v.a ? `<img src="${esc(v.a.replace(/^http:/, 'https:'))}@52w_52h.webp" referrerpolicy="no-referrer" onerror="this.style.visibility='hidden'">` : `<span class="av">${esc(String(v.n || mid).slice(0, 1))}</span>`}<a class="n" href="https://space.bilibili.com/${esc(mid)}" target="_blank">${esc(v.n || mid)}</a><span class="d">${v.t ? new Date(v.t).toLocaleDateString() : '导入'}</span><button data-un="${esc(mid)}">移除</button></li>`
+              `<li>${v.a ? `<img src="${esc(v.a.replace(/^http:/, 'https:'))}@52w_52h.webp" referrerpolicy="no-referrer" onerror="this.style.visibility='hidden'">` : `<span class="av">${esc(String(v.n || mid).slice(0, 1))}</span>`}<a class="n" href="https://space.bilibili.com/${esc(mid)}" target="_blank">${esc(v.n || mid)}</a><i class="tag${v.m ? ' hand' : ''}" title="${v.m ? '你亲手拉黑的' : '识别出来自动加入的'}">${v.m ? '手动' : '自动'}</i><span class="d">${v.t ? new Date(v.t).toLocaleDateString() : '导入'}</span><button data-un="${esc(mid)}">移除</button></li>`
           )
           .join('')
-      : `<li class="empty">${q ? '没有找到这条鱼' : '还没有屏蔽任何大肥鱼'}</li>`;
+      : `<li class="empty">${q ? '没有找到匹配的账号' : '还没有屏蔽任何账号。识别出的 AI 账号会自动出现在这里'}</li>`;
     const wl = Object.entries(S.whitelist).sort((a, b) => b[1].t - a[1].t);
     $('wl-n').textContent = wl.length;
     $('wl').innerHTML = wl.length
       ? wl.map(([mid, v]) => `<li><a class="n" href="https://space.bilibili.com/${esc(mid)}" target="_blank">${esc(v.n || mid)}</a><button data-unw="${esc(mid)}">移除</button></li>`).join('')
-      : '<li class="empty">误判的人类可以在空间卡片上点「是人类」</li>';
+      : '<li class="empty">还没有放行的账号。误判了，可以在隐藏记录里点「恢复」</li>';
   }
 
   /* ---------- 名单导入 / 导出（格式与原版完全兼容） ---------- */
@@ -625,7 +633,7 @@
           .slice(0, 20)
           .map((x) => `<li><span class="n">${esc(x.kind || '导入')} · 新增 ${x.added || 0} 条</span><span class="d">${new Date(x.t).toLocaleString()} · 现有 ${x.total || 0}</span></li>`)
           .join('')
-      : '<li class="empty">还没有导入过</li>';
+      : '<li class="empty">还没有导入过名单</li>';
   }
 
   $('io-import').onchange = async () => {

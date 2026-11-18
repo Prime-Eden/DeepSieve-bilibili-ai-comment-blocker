@@ -37,7 +37,7 @@
         source: 'dfy-iso',
         type: 'rules',
         rescan, // false = 只更新拦截规则，不必让主世界清标记重送全部评论（名单纯新增时）
-        rules: { e: !!DFY.settings.enabled, b: Object.keys(DFY.lists.block || {}), w: Object.keys(DFY.lists.white || {}), words: DFY.customWords || [], p: (DFY.settings && DFY.settings.subPolicy) || 'fish' },
+        rules: { e: !!DFY.settings.enabled, b: Object.keys(DFY.lists.block || {}), bm: Object.keys(DFY.lists.block || {}).filter((k) => DFY.lists.block[k] && DFY.lists.block[k].m), w: Object.keys(DFY.lists.white || {}), words: DFY.customWords || [], p: (DFY.settings && DFY.settings.subPolicy) || 'fish' },
       }, location.origin);
     } catch (e) {}
   }

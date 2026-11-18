@@ -184,6 +184,21 @@ select { margin-bottom: 4px; }
 .list li .d + button { margin-left: 0; }
 .list li.empty { color: var(--faint); justify-content: center; border: 0; padding: 14px 0; }
 
+/* 名单页：说明卡片 / 手动·自动标签 / 折叠的高级区 */
+.intro dl { display: grid; grid-template-columns: auto 1fr; gap: 6px 12px; font-size: 12px; line-height: 1.55; }
+.intro dt { font-weight: 600; color: var(--ink); white-space: nowrap; }
+.intro dd { color: var(--mut); min-width: 0; }
+.intro dd b { color: var(--ink); font-weight: 600; }
+.list li .tag { flex: none; font-style: normal; font-size: 10px; line-height: 16px; padding: 0 6px; border-radius: 999px; background: var(--field); color: var(--faint); }
+.list li .tag.hand { background: var(--tint); color: var(--acc-t); }
+details.adv { padding: 0; }
+details.adv > summary { list-style: none; cursor: pointer; padding: 12px 14px; font-size: 12px; font-weight: 600; color: var(--mut); display: flex; align-items: center; gap: 6px; }
+details.adv > summary::-webkit-details-marker { display: none; }
+details.adv > summary::after { content: ""; width: 6px; height: 6px; margin-left: auto; border-right: 1.5px solid var(--faint); border-bottom: 1.5px solid var(--faint); transform: rotate(45deg); transition: transform .15s; }
+details.adv[open] > summary::after { transform: rotate(-135deg); }
+details.adv > :not(summary) { margin-left: 14px; margin-right: 14px; }
+details.adv > :last-child { margin-bottom: 14px; }
+
 footer { margin-top: auto; padding: 14px 20px 18px; text-align: center; font-size: 10.5px; line-height: 1.6; color: var(--faint); }
 
 /* 导入/清空结果反馈条（拒绝静默失败） */

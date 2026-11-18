@@ -145,7 +145,7 @@
   /* ================= 职责 2：接口层拦截（融合自 blocker，MIT） ================= */
 
   const LS_KEY = 'dfy-rules-v1';
-  const RULES = { on: false, block: new Set(), white: new Set(), re: null, policy: 'fish' };
+  const RULES = { on: false, block: new Set(), manual: new Set(), white: new Set(), re: null, policy: 'fish' };
   let fishSet = new Set(); // 隔离世界判定为鱼的 mid 集合（预隐藏用）
 
   const escapeRe = (s) => String(s).replace(/[.*+?^${}()|[\]\\/|-]/g, '\\$&');
@@ -154,6 +154,7 @@
     j = j || {};
     RULES.on = !!j.e; // 插件总开关
     RULES.block = new Set((j.b || []).map(String));
+    RULES.manual = new Set((j.bm || []).map(String)); // 用户明确拉黑的子集（对 UP 主也生效）
     RULES.white = new Set((j.w || []).map(String));
     RULES.policy = j.p === 'thread' || j.p === 'ignore' ? j.p : 'fish';
     if (Array.isArray(j.words) && j.words.length) {
@@ -230,11 +231,24 @@
   };
   const snapOf = (r) => ({ id: String((r && (r.rpid_str || r.rpid)) || ''), m: midOf(r), n: nameOf(r), x: textOf(r).slice(0, 60) });
 
-  /** 白名单豁免；屏蔽名单 mid 或自定义屏蔽词命中 → 拦 */
+  /** 接口数据里的 UP 主 mid（评论接口自带 data.upper.mid，比页面状态更早可用） */
+  function upOf(json) {
+    try {
+      const u = json && json.data && json.data.upper && json.data.upper.mid;
+      return u ? String(u) : '';
+    } catch (e) {
+      return '';
+    }
+  }
+  let curUp = ''; // 正在过滤的这份数据对应的 UP 主
+
+  /** 白名单豁免；屏蔽名单 mid 或自定义屏蔽词命中 → 拦。
+   *  UP 主本人：自动累积的屏蔽记录不生效，只有用户明确拉黑（manual）才拦——与隔离世界 judge() 同一条规则，
+   *  否则接口层会先于 DOM 层的 UP 豁免把 UP 的发言删掉。 */
   function hit(r) {
     const mid = midOf(r);
     if (RULES.white.has(mid)) return false;
-    if (RULES.block.has(mid)) return true;
+    if (RULES.block.has(mid) && !(curUp && mid === curUp && !RULES.manual.has(mid))) return true;
     return !!(RULES.re && RULES.re.test(textOf(r)));
   }
 
@@ -260,6 +274,7 @@
     if (!RULES.on) return null; // 插件停用：接口数据原样放行
     const data = json && json.data;
     if (!data) return null;
+    curUp = upOf(json) || upMid();
     let roots = 0, replies = 0;
     const ids = [];
     const items = []; // 回收站快照（谁被拦了），回传给隔离世界
@@ -411,7 +426,7 @@
             if (first) emitEarly({ source: 'dfy-main', type: 'api-first' });
             // 判定前置：渲染前把数据送识别引擎（响应体此刻刚被我们换掉，页面还没渲染）
             const scan = scanPayload(json, kind);
-            if (scan.length) window.postMessage({ source: 'dfy-main', type: 'pre-scan', items: scan.slice(0, 80), upMid: upMid(), video: videoInfo() }, location.origin);
+            if (scan.length) window.postMessage({ source: 'dfy-main', type: 'pre-scan', items: scan.slice(0, 80), upMid: upMid() || upOf(json), video: videoInfo() }, location.origin);
             if (!f || (!f.roots && !f.replies)) return res;
             let out;
             try {
@@ -463,7 +478,7 @@
         if (!rawBody) return (xhr.__dfyCache = null);
         const obj = isJson ? rawBody : JSON.parse(rawBody);
         const scan = scanPayload(obj, xhr.__dfyKind);
-        if (scan.length) window.postMessage({ source: 'dfy-main', type: 'pre-scan', items: scan.slice(0, 80), upMid: upMid(), video: videoInfo() }, location.origin);
+        if (scan.length) window.postMessage({ source: 'dfy-main', type: 'pre-scan', items: scan.slice(0, 80), upMid: upMid() || upOf(obj), video: videoInfo() }, location.origin);
         const f = filterPayload(obj, xhr.__dfyKind);
         if (xhr.__dfyFirst) emitEarly({ source: 'dfy-main', type: 'api-first' });
         if (!f || (!f.roots && !f.replies)) return (xhr.__dfyCache = null);

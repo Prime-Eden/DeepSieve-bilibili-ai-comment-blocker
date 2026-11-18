@@ -212,7 +212,11 @@ function blAdd(entries) {
     const o = await chrome.storage.local.get(['blocklist', 'whitelist']);
     const bl = asObject(o.blocklist), wl = asObject(o.whitelist);
     let added = 0;
-    for (const [mid, v] of Object.entries(entries || {})) if (!bl[mid] && !wl[mid]) (bl[mid] = v), added++;
+    for (const [mid, v] of Object.entries(entries || {})) {
+      if (wl[mid]) continue;
+      if (!bl[mid]) (bl[mid] = v), added++;
+      else if (v && v.m && !bl[mid].m) bl[mid].m = 1; // 自动累积的条目被用户明确拉黑：升级为手动（对 UP 主也生效）
+    }
     await chrome.storage.local.set({ blocklist: bl });
     return { ok: true, added, total: Object.keys(bl).length };
   });
@@ -270,7 +274,7 @@ function blPromote(mid, name, avatar, score) {
   return enqueueBoth(['blocklist', 'whitelist'], async () => {
     const o = await chrome.storage.local.get(['whitelist', 'blocklist']);
     const wl = asObject(o.whitelist), bl = asObject(o.blocklist);
-    bl[mid] = { n: name || '', a: avatar || '', t: Date.now(), s: +score || 0 };
+    bl[mid] = { n: name || '', a: avatar || '', t: Date.now(), s: +score || 0, m: 1 }; // m:1 = 用户明确操作
     delete wl[mid];
     await chrome.storage.local.set({ whitelist: wl, blocklist: bl });
     return { ok: true };

@@ -38,8 +38,8 @@
 
   <section class="panel" data-panel="detect">
     <div class="card">
-      <div class="field-h">鉴定严格度 <em id="th-val">60</em></div>
-      <div class="slider"><span>宽松</span><input type="range" id="threshold" min="45" max="80" step="5"><span>严格</span></div>
+      <div class="field-h">识别灵敏度 <em id="th-val">标准 · 门槛 60%</em></div>
+      <div class="slider"><span>宽松</span><input type="range" id="threshold" min="45" max="80" step="5" aria-label="识别灵敏度：向右更严格，稍有痕迹就隐藏"><span>严格</span></div>
       <p class="hint" id="th-hint"></p>
     </div>
     <div class="card">
@@ -100,37 +100,46 @@
   </section>
 
   <section class="panel" data-panel="lists">
+    <div class="card intro">
+      <div class="field-h">这里管三件事</div>
+      <dl>
+        <dt>已屏蔽的账号</dt><dd>这些账号在<b>任何视频</b>下发的评论，都会被自动隐藏。</dd>
+        <dt>放行的账号</dt><dd>永远不会被隐藏。误杀了点「恢复」或「是人类」，账号就会进到这里。</dd>
+        <dt>隐藏记录</dt><dd>被隐藏过的评论清单，用来发现并找回误杀。</dd>
+      </dl>
+    </div>
+
     <div class="rec-card">
-      <div class="field-h">屏蔽名单 <em id="bl-n">0</em><span class="sub">引擎自动累积的账号</span></div>
-      <div class="list-tools"><input type="text" id="bl-q" placeholder="搜昵称或 UID" autocomplete="off" spellcheck="false"><button class="btn ghost sm" id="io-export" title="导出屏蔽名单和白名单（JSON）">导出</button><label class="btn ghost sm" title="导入名单，和现有名单合并（兼容原版格式）">导入<input type="file" id="io-import" accept="application/json,.json" hidden></label><button class="link danger" id="bl-clear" title="清空屏蔽名单（点两下确认）">清空</button></div>
+      <div class="field-h">已屏蔽的账号 <em id="bl-n">0</em><span class="sub">「自动」是识别出来的，「手动」是你亲手拉黑的。UP 主本人只有手动拉黑才会被屏蔽。</span></div>
+      <div class="list-tools"><input type="text" id="bl-q" placeholder="搜昵称或 UID" autocomplete="off" spellcheck="false"><button class="btn ghost sm" id="io-export" title="把已屏蔽的账号和放行的账号一起导出（JSON）">导出</button><label class="btn ghost sm" title="导入名单，和现有名单合并（兼容原版格式）">导入<input type="file" id="io-import" accept="application/json,.json" hidden></label><button class="link danger" id="bl-clear" title="清空已屏蔽的账号（点两下确认）">清空</button></div>
       <ul class="list" id="bl"></ul>
     </div>
 
     <div class="rec-card">
-      <div class="field-h">人类白名单 <em id="wl-n">0</em><button class="link danger" id="wl-clear">清空</button><span class="sub">恢复的账号放行到底，永不隐藏</span></div>
+      <div class="field-h">放行的账号 <em id="wl-n">0</em><button class="link danger" id="wl-clear" title="清空放行的账号（点两下确认）">清空</button><span class="sub">这些账号永远不会被隐藏，即使识别为 AI。</span></div>
       <ul class="list short" id="wl"></ul>
     </div>
 
     <div class="rec-card">
-      <div class="field-h">本页隐藏 <em id="rb-n">0</em><button class="link" id="rb-export" title="导出本页会话的隐藏记录（JSON）">导出本页</button><span class="sub">当前页面会话 · 点「恢复」放行账号</span></div>
+      <div class="field-h">隐藏记录 · 本页 <em id="rb-n">0</em><button class="link" id="rb-export" title="导出本页的隐藏记录（JSON）">导出</button><span class="sub">这个页面里被隐藏的评论。发现误杀，点「恢复」放行该账号。</span></div>
       <ul class="list short" id="rb"></ul>
     </div>
 
     <div class="rec-card">
-      <div class="field-h">隐藏总记录 <em id="rba-n">0</em><span class="sub">跨页面跨会话累计 · 上限 2000 条</span></div>
+      <div class="field-h">隐藏记录 · 历史累计 <em id="rba-n">0</em><span class="sub">所有视频累计的隐藏记录，最多保留 2000 条，主要用于导出备查。</span></div>
       <div class="rec-actions">
-        <label class="link" title="自动识别格式：总记录 JSON 合并进总记录；名单 JSON 并入屏蔽名单/白名单">导入<input type="file" id="rba-import-file" accept="application/json,.json" hidden></label>
-        <button class="link" id="rba-export" title="导出全部隐藏记录（JSON）">导出全部</button>
-        <button class="link danger" id="rba-clear" title="清空总记录（点两下确认）">清空</button>
+        <label class="link" title="自动识别格式：历史记录 JSON 合并进历史记录；名单 JSON 并入已屏蔽 / 放行的账号">导入<input type="file" id="rba-import-file" accept="application/json,.json" hidden></label>
+        <button class="link" id="rba-export" title="导出全部历史隐藏记录（JSON）">导出</button>
+        <button class="link danger" id="rba-clear" title="清空历史记录（点两下确认）">清空</button>
       </div>
     </div>
 
-    <div class="rec-card">
-      <div class="field-h">导入历史 <em id="ilh-n">0</em><span class="sub">每次导入的时间、类型与数量</span></div>
+    <details class="card adv">
+      <summary>高级与排查</summary>
+      <div class="field-h">导入日志 <em id="ilh-n">0</em><span class="sub">每次导入的时间、类型与数量</span></div>
       <ul class="list short" id="ilh"></ul>
-    </div>
-
-    <p class="hint small" id="selfcheck" title="绕过界面逻辑直读 chrome.storage 的原始计数，用于核对界面显示">存储自检：读取中…</p>
+      <p class="hint small" id="selfcheck" title="绕过界面逻辑直读 chrome.storage 的原始计数，用于核对界面显示">存储自检：读取中…</p>
+    </details>
   </section>
 
   <footer>数据只存本机 · 不读 Cookie · 不调用 B 站写接口<br>基于开源项目 dafeiyu-cleaner (MIT) 修改</footer>

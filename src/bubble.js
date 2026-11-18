@@ -344,7 +344,7 @@
   <button class="action" data-a="clear">${DFY.icon('broom', 16, 2.2)}<span>清扫本页</span></button>
   <button class="action secondary" data-a="box">${DFY.icon('frame', 16, 2)}<span>框选屏蔽</span></button>
 </div>
-<div class="field"><span class="field-label">灵敏度</span><div class="seg">${PRESETS.map((p2) => `<button data-th="${p2.t}" title="判定阈值 ${p2.t}%">${p2.label}</button>`).join('')}</div></div>
+<div class="field"><span class="field-label">灵敏度</span><div class="seg">${PRESETS.map((p2) => `<button data-th="${p2.t}" title="隐藏门槛 ${p2.t}%：嫌疑分达到才隐藏，越严格门槛越低">${p2.label}</button>`).join('')}</div></div>
 <div class="learn" style="display:none"><span class="lt">人工强化</span><span class="lv"></span></div>
 <div class="recent"><div class="recent-hd"><span>最近隐藏</span><span class="rc"></span><button data-a="all" title="在设置页查看全部记录">全部记录 ↗</button></div><div class="rlist"></div></div>
 <div class="tools">

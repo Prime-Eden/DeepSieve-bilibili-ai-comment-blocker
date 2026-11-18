@@ -1,4 +1,4 @@
-# DeepSieve 体检报告（2026-11-17，基于 v2.16.6 + 未发布修复）
+# DeepSieve 体检报告（2026-11-17，基于 v2.16.6，修复已并入 v2.16.7）
 
 > 方法：通读全部 JS（background / storage / content / main-world / comments / detector / counter / bubble / space / popup），对每个怀疑点先**实测**再下结论。
 > 环境：无头 Chromium + 模拟 B 站评论区 DOM（嵌套 shadow DOM，结构按源码推断）+ 合成评论数据；存储开销用 Node 按真实数据形状模拟。
