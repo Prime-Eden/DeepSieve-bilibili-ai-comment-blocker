@@ -43,8 +43,13 @@
   /** 把当前判鱼名单同步给主世界：挂载回调里据此做绘制前预隐藏 */
   function sendFishVerdicts() {
     const f = [];
-    for (const a of accounts.values()) if (a.verdict && a.verdict.level === 'fish') f.push(String(a.acc.mid));
-    window.postMessage({ source: 'dfy-iso', type: 'verdicts', f }, location.origin);
+    const k = []; // 账号是鱼、但这条评论要保留（长且不像 AI）：主世界预隐藏时跳过
+    for (const a of accounts.values()) {
+      if (!a.verdict || a.verdict.level !== 'fish') continue;
+      f.push(String(a.acc.mid));
+      for (const id of a.rpids) if (keepIt(items.get(id), a)) k.push(String(id));
+    }
+    window.postMessage({ source: 'dfy-iso', type: 'verdicts', f, k }, location.origin);
   }
 
   window.addEventListener('message', (e) => {
@@ -191,6 +196,32 @@
     const id = el.getAttribute('data-dfy-rpid');
     const it = id && items.get(id);
     return it ? accounts.get(it.mid) : null;
+  }
+  /* 保留「长且不像 AI」的评论（账号判定为 AI 也一样）：
+   * 评论超过 KEEP_LEN 字，且文字里命中的 AI 特征合计 < KEEP_MAX（不含「评论偏长」的加分）→ 留下。
+   * 不留的情形：手动拉黑的账号、命中自定义屏蔽词、DeepSeek 认定是 AI。接口层 / 预隐藏用同一条规则（见 main-world.js）。 */
+  const KEEP_LEN = 60, KEEP_MAX = 10;
+  const keepLenOf = (t) =>
+    String(t || '')
+      .replace(/^回复\s*@\S{1,24}\s*[:：]?/, '')
+      .replace(/@\S+/g, '')
+      .replace(/\[[^\]]{1,12}\]/g, '')
+      .replace(/\s+/g, '').length;
+  function weakLong(it, a) {
+    if (keepLenOf(it.text) < KEEP_LEN) return false;
+    const r = DFY.scoreText(it.text, { uname: a.acc.uname, isReply: it.isReply, aiTopic });
+    let s = 0;
+    for (const x of r.reasons) if (x.w > 0 && x.why !== '评论偏长且工整' && !/字小作文/.test(x.why)) s += x.w;
+    return s < KEEP_MAX;
+  }
+  function keepIt(it, a) {
+    if (!it || !a || !DFY.settings.keepLong) return false;
+    const blk = DFY.lists.block[a.acc.mid];
+    if (blk && blk.m) return false;
+    if (DFY.customHit && DFY.customHit(it.text)) return false;
+    if (a.llm && a.llm.ai >= 70) return false;
+    if (it.weak === undefined) it.weak = weakLong(it, a); // 文本部分只算一次
+    return it.weak;
   }
   const isFishAcc = (a) => !!(a && a.verdict && a.verdict.level === 'fish');
 
@@ -816,7 +847,7 @@
       const rootId = th.getAttribute('data-dfy-rpid');
       const rootIt = rootId && items.get(rootId);
       const rootAcc = rootIt ? accounts.get(rootIt.mid) : null;
-      const rootFish = isFishAcc(rootAcc);
+      const rootFish = isFishAcc(rootAcc) && !keepIt(rootIt, rootAcc);
       if (rootFish && rootAcc && !DFY.lists.block[rootAcc.acc.mid] && String(rootAcc.acc.mid) !== String(upMid)) toBlock.add(rootAcc);
 
       const reps = repliesOf(th).map((el) => {
@@ -824,8 +855,9 @@
         const it = id && items.get(id);
         const a = it ? accounts.get(it.mid) : null;
         const level = a && a.verdict ? a.verdict.level : 'human';
-        if (level === 'fish' && !DFY.lists.block[a.acc.mid] && String(a.acc.mid) !== String(upMid)) toBlock.add(a);
-        return { el, id, it, a, fish: level === 'fish', sus: level === 'suspect' };
+        const fishNow = level === 'fish' && !keepIt(it, a);
+        if (fishNow && !DFY.lists.block[a.acc.mid] && String(a.acc.mid) !== String(upMid)) toBlock.add(a);
+        return { el, id, it, a, fish: fishNow, sus: level === 'suspect' };
       });
       const anyReplyFish = reps.some((x) => x.fish);
 

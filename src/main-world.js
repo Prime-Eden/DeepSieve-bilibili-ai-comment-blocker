@@ -106,6 +106,7 @@
     const mid = String(d.member.mid || d.mid_str || d.mid || '');
     if (!fishSet.has(mid)) return;
     const id = String(d.rpid_str || d.rpid);
+    if (keepSet.has(id)) return;
     el.setAttribute(ATTR, id); // 让隔离世界的 items/accounts 能对上（scan 会因此跳过，数据走 pre-scan）
     el.setAttribute('data-dfy-pre', '1');
     el.style.display = 'none';
@@ -145,8 +146,9 @@
   /* ================= 职责 2：接口层拦截（融合自 blocker，MIT） ================= */
 
   const LS_KEY = 'dfy-rules-v1';
-  const RULES = { on: false, block: new Set(), manual: new Set(), white: new Set(), re: null, policy: 'fish' };
+  const RULES = { on: false, keepLong: false, block: new Set(), manual: new Set(), white: new Set(), re: null, policy: 'fish' };
   let fishSet = new Set(); // 隔离世界判定为鱼的 mid 集合（预隐藏用）
+  let keepSet = new Set(); // 账号是鱼但这条评论要保留（长且不像 AI）的 rpid 集合：预隐藏跳过
 
   const escapeRe = (s) => String(s).replace(/[.*+?^${}()|[\]\\/|-]/g, '\\$&');
 
@@ -155,6 +157,7 @@
     RULES.on = !!j.e; // 插件总开关
     RULES.block = new Set((j.b || []).map(String));
     RULES.manual = new Set((j.bm || []).map(String)); // 用户明确拉黑的子集（对 UP 主也生效）
+    RULES.keepLong = !!j.kl;
     RULES.white = new Set((j.w || []).map(String));
     RULES.policy = j.p === 'thread' || j.p === 'ignore' ? j.p : 'fish';
     if (Array.isArray(j.words) && j.words.length) {
@@ -188,6 +191,7 @@
     } else if (e.data.type === 'verdicts') {
       // 隔离世界同步来的判定结果：主世界据此在挂载回调里预隐藏
       fishSet = new Set((e.data.f || []).map(String));
+      keepSet = new Set((e.data.k || []).map(String));
     } else if (e.data.type === 'ready') {
       // 内容脚本就绪：回放它在加载完成前错过的拦截事件（首屏请求早于 document_idle 的场景）
       isoReady = true;
@@ -241,6 +245,13 @@
     }
   }
   let curUp = ''; // 正在过滤的这份数据对应的 UP 主
+  // 与隔离世界 keepLenOf 同一口径：去掉「回复 @xx」前缀、@提及、[表情]、空白后的字数
+  const keepLenOf = (t) =>
+    String(t || '')
+      .replace(/^回复\s*@\S{1,24}\s*[:：]?/, '')
+      .replace(/@\S+/g, '')
+      .replace(/\[[^\]]{1,12}\]/g, '')
+      .replace(/\s+/g, '').length;
 
   /** 白名单豁免；屏蔽名单 mid 或自定义屏蔽词命中 → 拦。
    *  UP 主本人：自动累积的屏蔽记录不生效，只有用户明确拉黑（manual）才拦——与隔离世界 judge() 同一条规则，
@@ -248,7 +259,10 @@
   function hit(r) {
     const mid = midOf(r);
     if (RULES.white.has(mid)) return false;
-    if (RULES.block.has(mid) && !(curUp && mid === curUp && !RULES.manual.has(mid))) return true;
+    if (RULES.block.has(mid) && !(curUp && mid === curUp && !RULES.manual.has(mid))) {
+      // 「保留长且不像 AI 的评论」：自动累积条目的长评论不在接口层一刀切，交给 DOM 层逐条判；手动拉黑的照拦
+      if (!(RULES.keepLong && !RULES.manual.has(mid) && keepLenOf(textOf(r)) >= 60)) return true;
+    }
     return !!(RULES.re && RULES.re.test(textOf(r)));
   }
 

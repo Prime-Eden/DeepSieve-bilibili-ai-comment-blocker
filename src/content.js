@@ -37,7 +37,7 @@
         source: 'dfy-iso',
         type: 'rules',
         rescan, // false = 只更新拦截规则，不必让主世界清标记重送全部评论（名单纯新增时）
-        rules: { e: !!DFY.settings.enabled, b: Object.keys(DFY.lists.block || {}), bm: Object.keys(DFY.lists.block || {}).filter((k) => DFY.lists.block[k] && DFY.lists.block[k].m), w: Object.keys(DFY.lists.white || {}), words: DFY.customWords || [], p: (DFY.settings && DFY.settings.subPolicy) || 'fish' },
+        rules: { e: !!DFY.settings.enabled, kl: !!DFY.settings.keepLong, b: Object.keys(DFY.lists.block || {}), bm: Object.keys(DFY.lists.block || {}).filter((k) => DFY.lists.block[k] && DFY.lists.block[k].m), w: Object.keys(DFY.lists.white || {}), words: DFY.customWords || [], p: (DFY.settings && DFY.settings.subPolicy) || 'fish' },
       }, location.origin);
     } catch (e) {}
   }
@@ -51,7 +51,7 @@
       const prev = DFY.settings;
       DFY.settings = Object.assign({}, DFY.DEFAULTS.settings, ch.settings);
       DFY.settings.llmKey = DFY.settings.llmKey ? 'configured' : ''; // 每次重载都要再脱敏，否则真实密钥会回到页面脚本里
-      const needJudge = prev.threshold !== DFY.settings.threshold || prev.subPolicy !== DFY.settings.subPolicy || prev.llmEnabled !== DFY.settings.llmEnabled || prev.enabled !== DFY.settings.enabled;
+      const needJudge = prev.threshold !== DFY.settings.threshold || prev.subPolicy !== DFY.settings.subPolicy || prev.llmEnabled !== DFY.settings.llmEnabled || prev.enabled !== DFY.settings.enabled || prev.keepLong !== DFY.settings.keepLong;
       if (!DFY.settings.enabled) DFY.comments.showAll();
       else if (!prev.enabled) {
         DFY.comments.rejudgeAll();

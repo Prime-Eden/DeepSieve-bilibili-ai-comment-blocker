@@ -64,6 +64,7 @@
     $('enabled').checked = !!s.enabled;
     $('showCount').checked = !!s.showCount;
     $('showBubble').checked = !!s.showBubble;
+    $('keepLong').checked = s.keepLong !== false;
     $('llmEnabled').checked = !!s.llmEnabled;
     $('llmAuto').checked = !!s.llmAuto;
     $('llmVision').checked = !!s.llmVision;
@@ -296,7 +297,7 @@
   /* ---------- 设置 ---------- */
   // 精判开关：域名权限按需申请（optional_host_permissions）。
   // permissions.request 必须在点击手势内同步发起，所以先调用、再 await；拒绝则回滚开关。
-  for (const id of ['enabled', 'showCount', 'showBubble', 'llmEnabled', 'llmAuto', 'llmVision']) {
+  for (const id of ['enabled', 'keepLong', 'showCount', 'showBubble', 'llmEnabled', 'llmAuto', 'llmVision']) {
     $(id).onchange = () => {
       S.settings[id] = $(id).checked;
       save();

@@ -59,7 +59,9 @@
       <p class="hint" id="sub-hint"></p>
     </div>
     <div class="card">
-      <div class="row first"><span class="lbl">显示「已清 N 条」计数</span><label class="switch"><input type="checkbox" id="showCount"><span></span></label></div>
+      <div class="row first"><span class="lbl">保留长且不像 AI 的评论</span><label class="switch"><input type="checkbox" id="keepLong"><span></span></label></div>
+      <p class="hint small">评论超过 60 字、文字里没有明显 AI 腔时，即使账号被识别为 AI 也不隐藏。手动拉黑的账号、命中屏蔽词的评论不受影响。</p>
+      <div class="row"><span class="lbl">显示「已清 N 条」计数</span><label class="switch"><input type="checkbox" id="showCount"><span></span></label></div>
       <div class="row"><span class="lbl">悬浮控制台<em class="mini">清扫台 · 可拖动</em></span><label class="switch"><input type="checkbox" id="showBubble"><span></span></label></div>
       <div class="row"><span class="lbl">前科记忆 <em class="mini" id="seen-n">0</em></span><button class="link" id="seen-clear">清空</button></div>
       <p class="hint small">同一账号在多个视频下都被认出是大肥鱼，以后见到会直接加分。只存在本机。</p>
