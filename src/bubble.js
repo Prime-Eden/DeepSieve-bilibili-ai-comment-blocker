@@ -254,7 +254,7 @@
     if (!root || !host || !host.isConnected) return;
     hintEl = document.createElement('div');
     hintEl.className = 'hint-bubble';
-    hintEl.innerHTML = '<b>悬浮台已就绪</b>可拖动 · 点我打开控制台';
+    hintEl.innerHTML = '<b>悬浮台</b>可拖动，点击展开';
     wrap.appendChild(hintEl);
     clearTimeout(hintTimer);
     hintTimer = setTimeout(dismissHint, 6000);

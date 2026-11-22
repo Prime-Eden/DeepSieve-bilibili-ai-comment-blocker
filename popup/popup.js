@@ -4,6 +4,15 @@
   const $ = (id) => document.getElementById(id);
   const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
   if (location.search.includes('page') || window.innerWidth > 500) document.body.classList.add('page');
+  // 弹窗里选文件时，有的环境会把弹窗关掉；在标签页里打开就没有这个问题
+  const openPage = document.getElementById('open-page');
+  if (openPage) {
+    if (document.body.classList.contains('page')) openPage.remove();
+    else openPage.onclick = (e) => {
+      e.preventDefault();
+      chrome.tabs.create({ url: chrome.runtime.getURL('popup/popup.html?page=1&tab=' + (localStorage.getItem('dfy-tab') || 'detect')) });
+    };
+  }
 
   let S = await DFY.store.get(['settings', 'blocklist', 'whitelist', 'customWords', 'seen']);
 
@@ -22,7 +31,7 @@
       rl = Array.isArray(o.removedLog) ? o.removedLog.length : 0;
       il = Array.isArray(o.importLog) ? o.importLog.length : 0;
     } catch (e) {}
-    $('selfcheck').textContent = `存储自检：屏蔽 ${bl} · 白名单 ${wl} · 总记录 ${rl} · 导入历史 ${il}`;
+    $('selfcheck').textContent = `存储自检：屏蔽 ${bl}，放行 ${wl}，历史记录 ${rl}，导入日志 ${il}`;
   }
 
   /* ---------- 分页（记住上次停留的页） ---------- */
@@ -43,9 +52,9 @@
   const save = () => DFY.store.set({ settings: S.settings });
 
   const SUB_HINT = {
-    fish: '主楼是大肥鱼 → 隐藏主楼（楼中楼保留）；楼中楼里有大肥鱼 → 只隐藏那几条回复。',
-    thread: '楼里出现任何一个大肥鱼账号（主楼或楼中楼）→ 整栋楼一起隐藏。',
-    ignore: '只判定和隐藏一级评论，楼中楼原样保留。',
+    fish: '主楼账号被判定为 AI 时仅隐藏主楼；楼中楼内被判定为 AI 的账号，仅隐藏其回复。',
+    thread: '楼中出现被判定为 AI 的账号（主楼或回复）时，隐藏整楼。',
+    ignore: '仅处理一级评论，楼中楼不做处理。',
   };
 
   /* 识别灵敏度：滑块方向与文字一致——「严格」= 稍有痕迹就隐藏 = 隐藏门槛低；「宽松」= 证据确凿才隐藏 = 门槛高。
@@ -56,7 +65,7 @@
     $('threshold').value = TH_MIN + TH_MAX - t;
     $('th-val').textContent = `${thLabel(t)} · 门槛 ${t}%`;
     const sus = Math.max(25, t - 25);
-    $('th-hint').textContent = `账号的「AI 嫌疑分」达到 ${t}% 就隐藏；${sus}%–${t - 1}% 只标「可疑」，不隐藏。越严格，门槛越低：稍有痕迹就隐藏，但误杀也更多；越宽松，门槛越高：只隐藏证据确凿的。`;
+    $('th-hint').textContent = `账号的嫌疑分达到 ${t}% 时，其评论被隐藏；嫌疑分在 ${sus}%–${t - 1}% 之间的账号只标记为「可疑」，不隐藏。灵敏度越高（向右），门槛越低，被隐藏的账号越多，误判也相应增加。`;
   }
 
   function renderSettings() {
@@ -96,7 +105,7 @@
     $('words').innerHTML = wordsOpen
       ? (ws.length
         ? ws.map((w) => `<span class="chip">${esc(w)}<i data-w="${esc(w)}" title="删除">×</i></span>`).join('')
-        : '<span class="empty">还没有自定义屏蔽词</span>')
+        : '<span class="empty">还没有屏蔽词</span>')
       : '';
     $('words-toggle').textContent = wordsOpen ? '收起' : '展开';
     $('words-n').textContent = `${ws.length} / 500 个词`;
@@ -129,28 +138,28 @@
     hereTab = tab;
     let t, s, cls = '', btns = [];
     if (!st) {
-      t = '这里不是 B 站';
-      s = '切到 B 站标签页后这里会自动跟上';
+      t = '当前不是 B 站页面';
+      s = '';
       btns = [['open', '去 B 站', 'ghost']];
     } else if (!st.enabled) {
       t = '已停用';
-      s = '打开右上角的开关立即恢复';
+      s = '打开右上角的开关后恢复';
     } else if (st.fish) {
       cls = 'fish';
       t = `本页已清 ${st.fish} 条`;
       s = `扫描 ${st.accounts} 个账号 · 可疑 ${st.suspect}`;
       btns = [['rescan', '重新扫描', 'ghost']];
     } else if (st.comments && st.accounts) {
-      t = '本页很干净';
+      t = '本页没有发现';
       s = `扫描 ${st.accounts} 个账号 · 可疑 ${st.suspect}`;
       btns = [['rescan', '重新扫描', 'ghost']];
     } else if (st.space) {
       t = '空间主页';
-      s = '鉴定卡片在页面右上角';
+      s = '卡片在页面右上角';
       btns = [['report', '打开鉴定卡片', '']];
     } else {
-      t = '还没看到评论区';
-      s = '滚到评论区自动开始识别';
+      t = '还没有评论区';
+      s = '滚到评论区后开始识别';
     }
     // 分数分布（人类/低疑/可疑/判鱼）
     let bars = '';
@@ -215,7 +224,7 @@
               `<li><a class="n" href="https://space.bilibili.com/${esc(x.mid || '')}" target="_blank">${esc(x.name || x.mid || '未知账号')}</a><span class="d" title="${esc(x.text || '')}">${esc((x.text || '').slice(0, 18))}${x.src === 'api' ? ' · 拦截' : ''}</span><button data-rb="${esc(x.mid || '')}">恢复</button></li>`
           )
           .join('')
-      : '<li class="empty">这个页面还没有隐藏过评论</li>';
+      : '<li class="empty">本页还没有隐藏评论</li>';
   }
   $('rb-export').onclick = () => {
     if (!lastRemoved.length) return;
@@ -257,36 +266,50 @@
     a.click();
     setTimeout(() => URL.revokeObjectURL(url), 2000);
   };
-  /* 总记录导入：格式自动路由——总记录格式合并总记录；名单格式自动转为名单导入 */
+  /** 读 JSON 文件，去掉可能带的 BOM */
+  async function readJson(f) {
+    return JSON.parse((await f.text()).replace(/^\uFEFF/, ''));
+  }
+  /** 把名单文件并入名单，返回要显示的提示 */
+  async function importListJson(j) {
+    const bl = normalizeList(j && (j.blocklist || (j.whitelist ? null : j)));
+    const wl = normalizeList(j && j.whitelist);
+    if (!Object.keys(bl).length && !Object.keys(wl).length) {
+      const keys = j && typeof j === 'object' ? Object.keys(j).slice(0, 6).join('、') : typeof j;
+      return { msg: `文件里没找到名单（内容：${keys || '空'}）`, ok: false };
+    }
+    const r = await mergeIntoLists(bl, wl);
+    if (r.error) return { msg: '导入失败：' + r.error, ok: false };
+    appendImportLog('名单', r.nb + r.nw, r.totalBl);
+    return { msg: r.nb || r.nw ? `导入完成：新增屏蔽 ${r.nb} 个，放行 ${r.nw} 个，现有屏蔽 ${r.totalBl} 个` : '没有新增，这些账号已经在名单里', ok: true };
+  }
+  const importFail = (e) => note(e instanceof SyntaxError ? '这不是有效的 JSON 文件' : '导入失败：' + (e && e.message ? e.message : e), false);
+
+  /* 历史记录导入：记录文件并入记录；名单文件自动转成名单导入 */
   $('rba-import-file').onchange = async () => {
     const f = $('rba-import-file').files[0];
     $('rba-import-file').value = '';
     if (!f) return;
-    let j;
     try {
-      j = JSON.parse(await f.text());
+      const j = await readJson(f);
+      const raw = Array.isArray(j) ? j : j && (j.removed || j.removedLog);
+      if (Array.isArray(raw)) {
+        const entries = normalizeRemoved(raw);
+        if (!entries.length) return note('文件里没有可用的记录', false);
+        const res = await sendMsg({ type: 'rl-append', items: entries });
+        if (!res || !res.ok) return note('导入失败：' + ((res && res.error) || '后台无响应'), false);
+        renderRemovedAll();
+        appendImportLog('历史记录', res.added || 0, res.total || 0);
+        return note(res.added ? `导入完成：新增 ${res.added} 条，现有 ${res.total} 条` : `没有新增，现有 ${res.total} 条`, true);
+      }
+      if (j && (j.blocklist || j.whitelist)) {
+        const r = await importListJson(j);
+        return note('这是名单文件，已按名单导入。' + r.msg, r.ok);
+      }
+      note('认不出这个文件：需要历史记录或名单的导出文件', false);
     } catch (e) {
-      return note('文件不是合法 JSON', false);
+      importFail(e);
     }
-    const raw = Array.isArray(j) ? j : j && (j.removed || j.removedLog);
-    if (Array.isArray(raw)) {
-      const entries = normalizeRemoved(raw);
-      if (!entries.length) return note('文件里没有可识别的记录', false);
-      const res = await sendMsg({ type: 'rl-append', items: entries });
-      if (!res || !res.ok) return note('导入失败：' + ((res && res.error) || '后台无响应'), false);
-      renderRemovedAll();
-      appendImportLog('总记录', res.added || 0, res.total || 0);
-      return note(res.added ? `导入成功：新增 ${res.added} 条（现有共 ${res.total} 条）` : `都已存在，没有新增（现有共 ${res.total} 条）`, true);
-    }
-    if (j && (j.blocklist || j.whitelist)) {
-      const bl = normalizeList(j.blocklist || {});
-      const wl = normalizeList(j.whitelist || {});
-      if (!Object.keys(bl).length && !Object.keys(wl).length) return note('这个文件里没有名单数据', false);
-      const r = await mergeIntoLists(bl, wl);
-      appendImportLog('名单', r.nb + r.nw, r.totalBl); // 此前这条路由漏记导入历史
-      return note(`识别为名单文件：已并入屏蔽名单 ${r.nb} 条、白名单 ${r.nw} 条（现有屏蔽共 ${r.totalBl} 条）`, true);
-    }
-    note('无法识别这个 JSON 的类型（需要总记录或名单导出格式）', false);
   };
   confirm2($('rba-clear'), async () => {
     await sendMsg({ type: 'rl-clear' });
@@ -316,7 +339,7 @@
           S.settings.llmEnabled = false;
           $(id).checked = false;
           save();
-          note('未授予 api.deepseek.com 域名权限，精判保持关闭', false);
+          note('没有授予 api.deepseek.com 的访问权限，精判已关闭', false);
         },
         () => {}
       );
@@ -363,7 +386,7 @@
     save();
     $('test').disabled = true;
     r.className = '';
-    r.textContent = '正在连接……';
+    r.textContent = '连接中';
     const res = await new Promise((ok) => chrome.runtime.sendMessage({ type: 'llm-test', key, model: S.settings.llmModel }, ok));
     $('test').disabled = false;
     if (res && res.ok) {
@@ -380,7 +403,7 @@
     const w = String(raw == null ? '' : raw).trim().slice(0, 24);
     if (!w) return { ok: false, msg: '词不能为空' };
     if ((S.customWords || []).length >= 100) return { ok: false, msg: '最多 500 个词' };
-    if (S.customWords.some((x) => x.toLowerCase() === w.toLowerCase())) return { ok: false, msg: '这个已经有了' };
+    if (S.customWords.some((x) => x.toLowerCase() === w.toLowerCase())) return { ok: false, msg: '已经有这个词了' };
     S.customWords.push(w);
     return { ok: true };
   }
@@ -426,7 +449,7 @@
       words = t.split(/\r?\n/); // txt：每行一词
     }
     words = words.map((w) => String(w == null ? '' : w).trim().slice(0, 24)).filter(Boolean);
-    if (!words.length) return note('文件里没有可识别的词', false);
+    if (!words.length) return note('文件里没有可用的词', false);
     const before = (S.customWords || []).length;
     const seen = new Set(S.customWords.map((x) => x.toLowerCase()));
     let added = 0;
@@ -441,7 +464,7 @@
     await DFY.store.set({ customWords: S.customWords });
     renderWords();
     renderSelfCheck();
-    note(S.customWords.length >= 100 ? `导入完成：新增 ${added} 个，已达上限 500` : `导入完成：新增 ${added} 个（原有 ${before}）`, true);
+    note(S.customWords.length >= 100 ? `导入完成：新增 ${added} 个，已到 500 个上限` : `导入完成：新增 ${added} 个（原有 ${before}）`, true);
   };
   $('word-export').onclick = () => {
     if (!(S.customWords || []).length) return note('还没有屏蔽词可导出', false);
@@ -537,15 +560,15 @@
           .slice(0, 300)
           .map(
             ([mid, v]) =>
-              `<li>${v.a ? `<img src="${esc(v.a.replace(/^http:/, 'https:'))}@52w_52h.webp" referrerpolicy="no-referrer" onerror="this.style.visibility='hidden'">` : `<span class="av">${esc(String(v.n || mid).slice(0, 1))}</span>`}<a class="n" href="https://space.bilibili.com/${esc(mid)}" target="_blank">${esc(v.n || mid)}</a><i class="tag${v.m ? ' hand' : ''}" title="${v.m ? '你亲手拉黑的' : '识别出来自动加入的'}">${v.m ? '手动' : '自动'}</i><span class="d">${v.t ? new Date(v.t).toLocaleDateString() : '导入'}</span><button data-un="${esc(mid)}">移除</button></li>`
+              `<li>${v.a ? `<img src="${esc(v.a.replace(/^http:/, 'https:'))}@52w_52h.webp" referrerpolicy="no-referrer" onerror="this.style.visibility='hidden'">` : `<span class="av">${esc(String(v.n || mid).slice(0, 1))}</span>`}<a class="n" href="https://space.bilibili.com/${esc(mid)}" target="_blank">${esc(v.n || mid)}</a><i class="tag${v.m ? ' hand' : ''}" title="${v.m ? '你手动拉黑的' : '由识别引擎自动加入（UP 主本人不受自动条目影响）'}">${v.m ? '手动' : '自动'}</i><span class="d">${v.t ? new Date(v.t).toLocaleDateString() : '导入'}</span><button data-un="${esc(mid)}">移除</button></li>`
           )
           .join('')
-      : `<li class="empty">${q ? '没有找到匹配的账号' : '还没有屏蔽任何账号。识别出的 AI 账号会自动出现在这里'}</li>`;
+      : `<li class="empty">${q ? '没有匹配的账号' : '还没有屏蔽账号'}</li>`;
     const wl = Object.entries(S.whitelist).sort((a, b) => b[1].t - a[1].t);
     $('wl-n').textContent = wl.length;
     $('wl').innerHTML = wl.length
       ? wl.map(([mid, v]) => `<li><a class="n" href="https://space.bilibili.com/${esc(mid)}" target="_blank">${esc(v.n || mid)}</a><button data-unw="${esc(mid)}">移除</button></li>`).join('')
-      : '<li class="empty">还没有放行的账号。误判了，可以在隐藏记录里点「恢复」</li>';
+      : '<li class="empty">还没有放行账号</li>';
   }
 
   /* ---------- 名单导入 / 导出（格式与原版完全兼容） ---------- */
@@ -564,7 +587,7 @@
     const put = (mid, v) => {
       mid = String(mid || '').trim();
       if (!/^\d{1,20}$/.test(mid)) return;
-      out[mid] = typeof v === 'object' && v ? { n: String(v.n || v.name || v.uname || ''), a: String(v.a || v.avatar || ''), t: +v.t || Date.now() } : { n: typeof v === 'string' ? v : '', t: Date.now() };
+      out[mid] = typeof v === 'object' && v ? { n: String(v.n || v.name || v.uname || ''), a: String(v.a || v.avatar || ''), t: +v.t || Date.now(), ...(v.m ? { m: 1 } : {}) } : { n: typeof v === 'string' ? v : '', t: Date.now() };
     };
     if (Array.isArray(x)) for (const it of x) typeof it === 'object' && it ? put(it.mid || it.id, it) : put(it, '');
     else if (x && typeof x === 'object') for (const [k, v] of Object.entries(x)) put(k, v);
@@ -634,26 +657,19 @@
           .slice(0, 20)
           .map((x) => `<li><span class="n">${esc(x.kind || '导入')} · 新增 ${x.added || 0} 条</span><span class="d">${new Date(x.t).toLocaleString()} · 现有 ${x.total || 0}</span></li>`)
           .join('')
-      : '<li class="empty">还没有导入过名单</li>';
+      : '<li class="empty">还没有导入记录</li>';
   }
 
   $('io-import').onchange = async () => {
     const f = $('io-import').files[0];
     $('io-import').value = '';
     if (!f) return;
-    let j;
     try {
-      j = JSON.parse(await f.text());
+      const r = await importListJson(await readJson(f));
+      note(r.msg, r.ok);
     } catch (e) {
-      return note('文件不是合法 JSON', false);
+      importFail(e);
     }
-    const bl = normalizeList(j && (j.blocklist || (j.whitelist ? null : j)));
-    const wl = normalizeList(j && j.whitelist);
-    if (!Object.keys(bl).length && !Object.keys(wl).length) return note('这个文件里没有名单数据', false);
-    const r = await mergeIntoLists(bl, wl);
-    if (r.error) return note('导入失败：' + r.error, false);
-    note(nb || nw ? `导入成功：新增屏蔽 ${r.nb} 条、白名单 ${r.nw} 条（现有屏蔽共 ${r.totalBl} 条）` : '名单里都是老面孔，没有新增', true);
-    appendImportLog('名单', r.nb + r.nw, r.totalBl);
   };
 
   DFY.store.onChange((ch) => {

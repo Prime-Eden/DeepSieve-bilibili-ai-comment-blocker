@@ -105,6 +105,8 @@ b, strong { font-variant-numeric: tabular-nums; }
 .row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 0; min-height: 40px; }
 .row + .row, .row + .hint + .row { border-top: 1px solid var(--line); }
 .row.first { padding-top: 0; }
+.row:has(+ .hint) { padding-bottom: 2px; }
+.row + .hint { margin: 0 0 6px; }
 .lbl { font-size: 13px; min-width: 0; }
 .lbl .mini { font-style: normal; font-size: 11px; color: var(--faint); margin-left: 4px; }
 .switch { flex: none; cursor: pointer; }

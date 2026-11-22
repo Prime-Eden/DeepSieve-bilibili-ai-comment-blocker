@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>DeepSieve · AI 评论滤除</title>
+<title>DeepSieve · AI 评论过滤</title>
 <link rel="stylesheet" href="popup.css">
 </head>
 <body>
@@ -11,8 +11,8 @@
   <header class="hero">
     <div class="hero-txt">
       <h1>DeepSieve</h1>
-      <p class="sub">AI 评论滤除 · 命中即隐藏，不打扰</p>
-      <div class="fp" id="fp" title="扩展指纹：装了两份的话，两个面板这里的 ID 会不同"></div>
+      <p class="sub">AI 评论过滤</p>
+      <div class="fp" id="fp" title="扩展 ID，装了两份时用来区分"></div>
     </div>
     <label class="power" title="总开关"><input type="checkbox" id="enabled"><span><b class="on">运行中</b><b class="off">已停用</b></span></label>
   </header>
@@ -24,7 +24,7 @@
   </section>
 
   <section class="here" id="here">
-    <div class="here-txt"><b id="here-t">本页</b><span id="here-s">正在读取状态……</span></div>
+    <div class="here-txt"><b id="here-t">本页</b><span id="here-s">读取中</span></div>
     <div class="bands" id="here-b"></div>
     <div class="here-btns" id="here-btns"></div>
   </section>
@@ -39,44 +39,46 @@
   <section class="panel" data-panel="detect">
     <div class="card">
       <div class="field-h">识别灵敏度 <em id="th-val">标准 · 门槛 60%</em></div>
-      <div class="slider"><span>宽松</span><input type="range" id="threshold" min="45" max="80" step="5" aria-label="识别灵敏度：向右更严格，稍有痕迹就隐藏"><span>严格</span></div>
+      <div class="slider"><span>宽松</span><input type="range" id="threshold" min="45" max="80" step="5" aria-label="识别灵敏度，越靠右越严格"><span>严格</span></div>
       <p class="hint" id="th-hint"></p>
     </div>
     <div class="card">
-      <div class="field-h">评论一键屏蔽</div>
+      <div class="field-h">悬停拉黑按钮</div>
       <div class="seg" id="block-btn">
-        <button data-v="auto">自动</button>
-        <button data-v="on">常开</button>
+        <button data-v="auto">停留 1 秒</button>
+        <button data-v="on">马上</button>
         <button data-v="off">关闭</button>
       </div>
-      <p class="hint small">鼠标停在评论上浮出「拉黑」小按钮，点后有 3 秒撤销。「自动」= 停留 1 秒后出现；「常开」= 一悬停就出现。</p>
+      <p class="hint small">鼠标悬停在评论上时，在操作栏旁显示「拉黑」按钮。点击后该账号加入屏蔽名单，3 秒内可以撤销。「停留 1 秒」表示悬停 1 秒后显示，「马上」表示悬停即显示。</p>
       <div class="field-h">楼中楼处理</div>
       <div class="seg" id="sub-policy">
         <button data-v="fish">只隐藏该账号</button>
         <button data-v="thread">整楼隐藏</button>
-        <button data-v="ignore">不管楼中楼</button>
+        <button data-v="ignore">不处理</button>
       </div>
       <p class="hint" id="sub-hint"></p>
     </div>
     <div class="card">
-      <div class="row first"><span class="lbl">保留长且不像 AI 的评论</span><label class="switch"><input type="checkbox" id="keepLong"><span></span></label></div>
-      <p class="hint small">评论超过 60 字、文字里没有明显 AI 腔时，即使账号被识别为 AI 也不隐藏。手动拉黑的账号、命中屏蔽词的评论不受影响。</p>
+      <div class="row first"><span class="lbl">保留较长的评论</span><label class="switch"><input type="checkbox" id="keepLong"><span></span></label></div>
+      <p class="hint small">评论超过 60 字，且文本中没有明显的 AI 特征时，即使账号被判定为 AI 也不隐藏。手动拉黑的账号和命中屏蔽词的评论不适用。</p>
       <div class="row"><span class="lbl">显示「已清 N 条」计数</span><label class="switch"><input type="checkbox" id="showCount"><span></span></label></div>
-      <div class="row"><span class="lbl">悬浮控制台<em class="mini">清扫台 · 可拖动</em></span><label class="switch"><input type="checkbox" id="showBubble"><span></span></label></div>
+      <p class="hint small">在评论区上方显示当前页面已隐藏的评论数量。</p>
+      <div class="row"><span class="lbl">悬浮控制台</span><label class="switch"><input type="checkbox" id="showBubble"><span></span></label></div>
+      <p class="hint small">页面上可拖动的圆形按钮，点开后可以清理本页、框选屏蔽账号、查看最近隐藏的评论。</p>
       <div class="row"><span class="lbl">前科记忆 <em class="mini" id="seen-n">0</em></span><button class="link" id="seen-clear">清空</button></div>
-      <p class="hint small">同一账号在多个视频下都被认出是大肥鱼，以后见到会直接加分。只存在本机。</p>
-      <p class="hint small keys">快捷键：<kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>S</kbd> 清理本页</p>
+      <p class="hint small">记录在多个视频中被判定为 AI 的账号，再次遇到时直接提高其嫌疑分。数据仅保存在本机。</p>
+      <p class="hint small keys">快捷键 <kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>S</kbd>：清理当前页面。</p>
     </div>
   </section>
 
   <section class="panel" data-panel="words">
     <div class="card">
-      <p class="hint top">评论命中任意一个词 → 该账号直接隐藏。不分大小写，包含即命中，所有档位生效。最多 500 个词。</p>
+      <p class="hint top">评论中包含任一屏蔽词时，该账号的评论会被隐藏。匹配不区分大小写，最多 500 个词。</p>
       <div class="word-add">
         <input type="text" id="word-in" placeholder="输入一个词，回车添加" maxlength="24" autocomplete="off" spellcheck="false">
         <button class="btn" id="word-add">添加</button>
       </div>
-      <div class="list-tools"><span class="sub">支持导入 txt（每行一词）或 JSON</span><button class="btn ghost sm" id="word-export" title="导出屏蔽词为 JSON">导出</button><label class="btn ghost sm" title="导入 txt（每行一词）或 JSON 数组">导入<input type="file" id="word-import" accept=".txt,.json,application/json,text/plain" hidden></label><button class="link danger" id="word-clear" title="清空全部屏蔽词（点两下确认）">清空</button></div>
+      <div class="list-tools"><span class="sub">可导入 txt（每行一个词）或 JSON</span><button class="btn ghost sm" id="word-export" title="导出屏蔽词为 JSON">导出</button><label class="btn ghost sm" title="导入 txt（每行一词）或 JSON 数组">导入<input type="file" id="word-import" accept=".txt,.json,application/json,text/plain" hidden></label><button class="link danger" id="word-clear" title="清空全部屏蔽词（点两下确认）">清空</button></div>
       <div class="field-h">词表 <em id="words-c">0</em><button class="link" id="words-toggle">展开</button></div>
       <div class="chips" id="words"></div>
       <p class="hint small" id="words-n"></p>
@@ -86,7 +88,7 @@
   <section class="panel ds" data-panel="ds">
    <div class="card">
     <div class="row first"><span class="lbl">开启 DeepSeek 精判</span><label class="switch"><input type="checkbox" id="llmEnabled"><span></span></label></div>
-    <p class="hint">拿不准的账号交给 DeepSeek 再判一次，结果静默生效。</p>
+    <p class="hint">对判定不确定的账号，调用 DeepSeek 再做一次判断，结果自动生效。需要自备 API Key。</p>
     <div id="ds-body">
       <div class="keybox"><input type="password" id="llmKey" placeholder="API Key：sk-..." autocomplete="off" spellcheck="false"><button id="eye" class="icon-btn" title="显示 / 隐藏">显示</button></div>
       <select id="llmModel">
@@ -96,55 +98,46 @@
       <div class="row"><span class="lbl">自动精判可疑账号</span><label class="switch"><input type="checkbox" id="llmAuto"><span></span></label></div>
       <div class="row"><span class="lbl">空间鉴定时看头像</span><label class="switch"><input type="checkbox" id="llmVision"><span></span></label></div>
       <div class="test"><button class="btn" id="test">测试连接</button><span id="test-res"></span></div>
-      <p class="hint small lock">密钥只保存在本机，只会发送到 api.deepseek.com。<a href="https://platform.deepseek.com/api_keys" target="_blank">申请密钥</a></p>
+      <p class="hint small lock">密钥仅保存在本机，仅发送至 api.deepseek.com。<a href="https://platform.deepseek.com/api_keys" target="_blank">申请密钥</a></p>
     </div>
    </div>
   </section>
 
   <section class="panel" data-panel="lists">
-    <div class="card intro">
-      <div class="field-h">这里管三件事</div>
-      <dl>
-        <dt>已屏蔽的账号</dt><dd>这些账号在<b>任何视频</b>下发的评论，都会被自动隐藏。</dd>
-        <dt>放行的账号</dt><dd>永远不会被隐藏。误杀了点「恢复」或「是人类」，账号就会进到这里。</dd>
-        <dt>隐藏记录</dt><dd>被隐藏过的评论清单，用来发现并找回误杀。</dd>
-      </dl>
-    </div>
-
     <div class="rec-card">
-      <div class="field-h">已屏蔽的账号 <em id="bl-n">0</em><span class="sub">「自动」是识别出来的，「手动」是你亲手拉黑的。UP 主本人只有手动拉黑才会被屏蔽。</span></div>
-      <div class="list-tools"><input type="text" id="bl-q" placeholder="搜昵称或 UID" autocomplete="off" spellcheck="false"><button class="btn ghost sm" id="io-export" title="把已屏蔽的账号和放行的账号一起导出（JSON）">导出</button><label class="btn ghost sm" title="导入名单，和现有名单合并（兼容原版格式）">导入<input type="file" id="io-import" accept="application/json,.json" hidden></label><button class="link danger" id="bl-clear" title="清空已屏蔽的账号（点两下确认）">清空</button></div>
+      <div class="field-h">已屏蔽账号 <em id="bl-n">0</em><span class="sub">名单内账号的评论在所有视频下都会被隐藏。「手动」条目由用户拉黑，「自动」条目由识别引擎加入。UP 主本人仅在被手动拉黑后才会被隐藏。</span></div>
+      <div class="list-tools"><input type="text" id="bl-q" placeholder="搜昵称或 UID" autocomplete="off" spellcheck="false"><button class="btn ghost sm" id="io-export" title="导出屏蔽和放行名单（JSON）">导出</button><label class="btn ghost sm" title="导入名单，和现有的合并">导入<input type="file" id="io-import" accept="application/json,.json" hidden></label><button class="link danger" id="bl-clear" title="清空屏蔽名单（点两下确认）">清空</button></div>
       <ul class="list" id="bl"></ul>
     </div>
 
     <div class="rec-card">
-      <div class="field-h">放行的账号 <em id="wl-n">0</em><button class="link danger" id="wl-clear" title="清空放行的账号（点两下确认）">清空</button><span class="sub">这些账号永远不会被隐藏，即使识别为 AI。</span></div>
+      <div class="field-h">放行账号 <em id="wl-n">0</em><button class="link danger" id="wl-clear" title="清空放行名单（点两下确认）">清空</button><span class="sub">名单内账号的评论不会被隐藏，即使被识别为 AI。在隐藏记录中点击「恢复」的账号会加入此名单。</span></div>
       <ul class="list short" id="wl"></ul>
     </div>
 
     <div class="rec-card">
-      <div class="field-h">隐藏记录 · 本页 <em id="rb-n">0</em><button class="link" id="rb-export" title="导出本页的隐藏记录（JSON）">导出</button><span class="sub">这个页面里被隐藏的评论。发现误杀，点「恢复」放行该账号。</span></div>
+      <div class="field-h">本页隐藏记录 <em id="rb-n">0</em><button class="link" id="rb-export" title="导出本页隐藏记录（JSON）">导出</button><span class="sub">当前页面中被隐藏的评论。点击「恢复」可放行对应账号。</span></div>
       <ul class="list short" id="rb"></ul>
     </div>
 
     <div class="rec-card">
-      <div class="field-h">隐藏记录 · 历史累计 <em id="rba-n">0</em><span class="sub">所有视频累计的隐藏记录，最多保留 2000 条，主要用于导出备查。</span></div>
+      <div class="field-h">历史隐藏记录 <em id="rba-n">0</em><span class="sub">所有视频累计的隐藏记录，最多保留 2000 条，可导出备查。</span></div>
       <div class="rec-actions">
-        <label class="link" title="自动识别格式：历史记录 JSON 合并进历史记录；名单 JSON 并入已屏蔽 / 放行的账号">导入<input type="file" id="rba-import-file" accept="application/json,.json" hidden></label>
-        <button class="link" id="rba-export" title="导出全部历史隐藏记录（JSON）">导出</button>
-        <button class="link danger" id="rba-clear" title="清空历史记录（点两下确认）">清空</button>
+        <label class="link" title="导入历史记录；如果是名单文件，会按名单导入">导入<input type="file" id="rba-import-file" accept="application/json,.json" hidden></label>
+        <button class="link" id="rba-export" title="导出历史隐藏记录（JSON）">导出</button>
+        <button class="link danger" id="rba-clear" title="清空历史隐藏记录（点两下确认）">清空</button>
       </div>
     </div>
 
     <details class="card adv">
-      <summary>高级与排查</summary>
-      <div class="field-h">导入日志 <em id="ilh-n">0</em><span class="sub">每次导入的时间、类型与数量</span></div>
+      <summary>高级</summary>
+      <div class="field-h">导入日志 <em id="ilh-n">0</em><span class="sub">每次导入的时间、类型和数量。</span></div>
       <ul class="list short" id="ilh"></ul>
-      <p class="hint small" id="selfcheck" title="绕过界面逻辑直读 chrome.storage 的原始计数，用于核对界面显示">存储自检：读取中…</p>
+      <p class="hint small" id="selfcheck" title="直接读取存储里的数量，用来核对界面显示">存储自检：读取中</p>
     </details>
   </section>
 
-  <footer>数据只存本机 · 不读 Cookie · 不调用 B 站写接口<br>基于开源项目 dafeiyu-cleaner (MIT) 修改</footer>
+  <footer>数据只存本机，不读 Cookie，不调用 B 站写接口。<br>基于 dafeiyu-cleaner (MIT) 修改。<a href="#" id="open-page">在新标签页打开</a></footer>
 </main>
 <script src="../src/icons.js"></script>
 <script src="../src/storage.js"></script>

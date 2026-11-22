@@ -1,4 +1,4 @@
-# 隐私说明（DeepSieve · AI 评论滤除）
+# 隐私说明（DeepSieve · AI 评论过滤）
 
 基于开源项目 [dafeiyu-cleaner](https://github.com/liyupi/dafeiyu-cleaner)（MIT）修改，隐私约定与原版一致：
 

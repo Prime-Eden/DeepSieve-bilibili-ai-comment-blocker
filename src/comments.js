@@ -157,7 +157,7 @@
       score = Math.max(score, 99);
       reasons.unshift({ w: 99, why: blk.m ? '已在屏蔽名单里（手动）' : '已在屏蔽名单里' });
     } else if (blk && isUp) {
-      reasons.unshift({ w: 0, why: 'UP 主本人：自动累积的屏蔽记录不生效（手动拉黑才生效）' });
+      reasons.unshift({ w: 0, why: 'UP 主本人，自动加入的屏蔽记录不生效' });
     }
     a.verdict = { score, offline: off.score, level: DFY.levelOf(score, DFY.settings.threshold), reasons };
     // 只凭本页证据就够得上大肥鱼时才记前科（名单、精判、屏蔽词都不算，避免自我强化）
@@ -260,7 +260,7 @@
       `<div style="font-weight:700;margin-bottom:2px">${DFY.esc(a.acc.uname)} · 可疑 ${v.score == null ? '?' : v.score}%${a.llm ? ` · DeepSeek ${a.llm.ai}%` : ''}</div>` +
       (reasons ? `<div style="opacity:.85">${reasons}</div>` : '<div style="opacity:.7">暂无明显特征</div>') +
       (a.llm ? `<div style="margin-top:3px;opacity:.85">DeepSeek：${DFY.esc(a.llm.reason || '')}</div>` : '') +
-      '<div style="margin-top:4px;opacity:.55">仅供参考 · 点「拉黑」立即拉黑 · 达到阈值自动隐藏</div>';
+      '<div style="margin-top:4px;opacity:.55">点「拉黑」可直接屏蔽</div>';
     const r = anchor.getBoundingClientRect();
     susTip.style.display = 'block';
     const tw = susTip.offsetWidth, thh = susTip.offsetHeight;
@@ -624,7 +624,7 @@
     // 即时反馈：手动裁决被看见（悬浮台闪现强化提示；菜单开着时菜单数字即反馈）
     if (DFY.bubble && DFY.bubble.flash) {
       const kinds = Object.keys(stats).length;
-      DFY.bubble.flash(opts.grace ? `已拉黑（3 秒内可撤销）· 特征强化 ${kinds} 类` : list.length > 1 ? `已拉黑 ${list.length} 个账号 · 特征强化 ${kinds} 类` : `已拉黑 · 特征强化 +${kinds || 1}`);
+      DFY.bubble.flash(opts.grace ? '已拉黑，3 秒内可撤销' : list.length > 1 ? `已拉黑 ${list.length} 个账号` : '已拉黑');
     }
     return list.length;
   }
@@ -766,7 +766,7 @@
     const layer = document.createElement('div');
     layer.style.cssText = 'position:fixed;inset:0;z-index:2147482999;cursor:crosshair;background:rgba(31,35,41,.05)';
     const tip = document.createElement('div');
-    tip.textContent = '拖动框选要屏蔽的评论 · 松手生效 · Esc 取消';
+    tip.textContent = '拖动框选要屏蔽的评论，松手确认，Esc 取消';
     tip.style.cssText = 'position:fixed;top:14px;left:50%;transform:translateX(-50%);z-index:1;padding:6px 14px;border-radius:8px;background:#1f2329;color:#fff;font:500 13px/1.4 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;box-shadow:0 6px 18px rgba(0,0,0,.35)';
     const rect = document.createElement('div');
     rect.style.cssText = 'position:fixed;border:1.5px dashed #e0566b;background:rgba(224,86,107,.08);display:none;pointer-events:none';

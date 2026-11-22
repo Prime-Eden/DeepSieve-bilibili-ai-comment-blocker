@@ -206,7 +206,7 @@ button:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
     const llm = r.llm
       ? `<div class="llm">DeepSeek：AI 概率 ${r.llm.ai}% · ${esc(r.llm.reason || '')}${r.llm.cached ? '（7 天内判过）' : ''}</div>`
       : state.llmLoading
-        ? '<div class="llm">DeepSeek 正在分析该账号……</div>'
+        ? '<div class="llm">DeepSeek 分析中</div>'
         : '';
     const btns = [];
     if (blocked) btns.push('<button class="pri" data-a="unblock">取消屏蔽</button>');
@@ -216,10 +216,10 @@ button:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
     if (!white && info.lv !== 'human') btns.push('<button data-a="white">是人类</button>');
     card.innerHTML = `
 <div class="hd"><b>账号鉴定</b><span class="uid">UID ${esc(p.mid)}</span><span class="x" data-a="close" title="关闭" role="button" aria-label="关闭">×</span></div>
-${blocked ? `<div class="notice">已在屏蔽名单 · 该账号的评论会被自动隐藏</div>` : white ? `<div class="notice">在白名单里，不会被处理</div>` : ''}
+${blocked ? `<div class="notice">已在屏蔽名单里</div>` : white ? `<div class="notice">在放行名单里</div>` : ''}
 <div class="who"><div class="avw"><span>${esc(String(p.uname || '?').slice(0, 1))}</span><img src="${esc((p.avatar || '').replace(/^http:/, 'https:'))}@132w_132h.webp" referrerpolicy="no-referrer"></div><div><div class="nm">${esc(p.uname)}</div><div class="meta">Lv${p.level} · ${fmtNum(p.fans)} 粉丝 · 投稿 ${p.archives}</div></div></div>
 <div class="verdict"><strong>${r.score}<small>%</small></strong><span>${blocked ? '已屏蔽' : info.label}</span></div>
-<div class="gauge"><i style="width:${r.score}%"></i><u style="left:${DFY.settings.threshold}%" title="当前判定阈值"></u></div>
+<div class="gauge"><i style="width:${r.score}%"></i><u style="left:${DFY.settings.threshold}%" title="当前门槛"></u></div>
 <ul>${ev || '<li class="empty">没有发现 AI 特征</li>'}</ul>
 ${llm}
 <div class="btns">${btns.join('')}</div>`;
