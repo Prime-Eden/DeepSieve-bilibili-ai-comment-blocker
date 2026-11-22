@@ -61,7 +61,7 @@
         const full = items.get(String(it.id || ''));
         const a = accounts.get(mid);
         const { sc, f } = featsOf(a);
-        logRemoved({ id: String(it.id || ''), mid, name: it.n || (full ? full.uname : ''), text: full ? full.text : it.x, src: 'api', score: sc, feats: f });
+        logRemoved({ id: String(it.id || ''), mid, name: it.n || (full ? full.uname : ''), text: (full && full.text) || it.x, src: 'api', score: sc, feats: f });
       }
       return;
     }
@@ -139,7 +139,7 @@
       a.verdict = { score: 0, level: 'human', reasons: [{ w: -99, why: '在白名单里' }] };
       return;
     }
-    const off = DFY.judge(a.acc, its.map((i) => ({ text: i.text, isReply: i.isReply })), { upMid, topCount: its.filter((i) => !i.isReply).length, priorPages: DFY.memory.prior(mid), calledOut: callout.get(String(mid)) || 0, sameSecond: sameSecondOf(a), aiTopic, manualStats: DFY.manualStats || {} });
+    const off = DFY.judge(a.acc, its.map((i) => ({ text: i.text, isReply: i.isReply })), { upMid, topCount: its.filter((i) => !i.isReply).length, priorPages: DFY.memory.prior(mid), calledOut: callout.get(String(mid)) || 0, sameSecond: sameSecondOf(a), aiTopic, manualStats: DFY.manualStats || {}, humanStats: DFY.humanStats || {} });
     let score = off.score;
     const reasons = off.reasons.slice();
     if (a.llm) score = Math.round(off.score * 0.45 + a.llm.ai * 0.55);
@@ -159,9 +159,14 @@
     } else if (blk && isUp) {
       reasons.unshift({ w: 0, why: 'UP 主本人，自动加入的屏蔽记录不生效' });
     }
+    // 用户明确反馈「不是 AI」后，该账号不再因普通自动评分被隐藏；手动拉黑和自定义屏蔽词优先。
+    if (DFY.humanFeedback && DFY.humanFeedback[mid] && !(blk && blk.m) && !wordHit) {
+      score = Math.min(score, Math.max(0, DFY.settings.threshold - 1));
+      reasons.unshift({ w: 0, why: '用户反馈：不是 AI', tag: 'human-feedback-account' });
+    }
     a.verdict = { score, offline: off.score, level: DFY.levelOf(score, DFY.settings.threshold), reasons };
     // 只凭本页证据就够得上大肥鱼时才记前科（名单、精判、屏蔽词都不算，避免自我强化）
-    if (off.raw >= DFY.settings.threshold && (!a.llm || a.llm.ai >= 50) && !wordHit) DFY.memory.mark(mid, a.acc.uname);
+    if (off.raw >= DFY.settings.threshold && (!a.llm || a.llm.ai >= 50) && !wordHit && !(DFY.humanFeedback && DFY.humanFeedback[mid])) DFY.memory.mark(mid, a.acc.uname);
   }
   /** 只重判指定账号：名单纯新增（别的标签页 / 本页自动累积）时用，免去全量重判与全量重扫 */
   C.rejudgeMids = function (mids) {
@@ -629,6 +634,47 @@
     return list.length;
   }
 
+  /** 悬浮台使用：按账号拉黑，沿用现有手动名单与特征强化流程。 */
+  C.blockMid = async function (mid) {
+    mid = String(mid || '');
+    if (!mid || DFY.lists.white[mid]) return false;
+    return (await blockMids([mid], null)) > 0;
+  };
+
+  /** 「不是」：按账号去重提交负反馈，不加入白名单；自动屏蔽项由后台同步移除。 */
+  C.feedbackNotAI = async function (mid) {
+    mid = String(mid || '');
+    if (!mid) return false;
+    const feedback = DFY.humanFeedback || (DFY.humanFeedback = {});
+    const a = accounts.get(mid);
+    const record = removedLog.find((x) => String(x.mid) === mid);
+    const name = (a && a.acc && a.acc.uname) || (record && record.name) || '';
+    const excluded = new Set(['manual', 'level', 'avatar', 'mid', 'up', 'verify', 'vip', 'history', 'human-feedback']);
+    const tags = {};
+    for (const r of (a && a.verdict && a.verdict.reasons) || []) {
+      if (r && r.w > 0 && r.why && r.tag && !excluded.has(r.tag)) tags[r.why] = 1;
+    }
+    if (!DFY.callBg) return false;
+    const saved = await DFY.callBg({ type: 'hf-add', mid, name, tags });
+    if (!saved || !saved.ok) return false;
+
+    feedback[mid] = feedback[mid] || { n: name, t: Date.now() };
+    if (saved.removedAutoBlock) delete DFY.lists.block[mid];
+    DFY.humanStats = (await DFY.store.get('humanStats')) || {};
+    // DOM 评论按新分数恢复；接口层已拦截的内容需刷新页面重新请求。
+    if (a) judge(a);
+    C.render();
+    return true;
+  };
+
+  /** 「放过」：加入放行名单，沿用现有恢复流程。 */
+  C.passMid = async function (mid) {
+    mid = String(mid || '');
+    if (!mid) return false;
+    await C.restore(mid);
+    return !!DFY.lists.white[mid];
+  };
+
   /** 撤销一次手动拉黑：移出名单 + 恢复原评分，评论立即回来 */
   async function undoBlock(mid) {
     mid = String(mid || '');
@@ -744,16 +790,21 @@
   /** 恢复 = 加入白名单 + 移出屏蔽名单（后台原子完成）；接口层拦掉的评论刷新页面后才会重新出现 */
   C.restore = async function (mid) {
     mid = String(mid || '');
-    if (!mid || DFY.lists.white[mid]) return;
+    if (!mid) return false;
+    if (DFY.lists.white[mid]) return true;
     const a = accounts.get(mid);
     const name = a ? a.acc.uname : ((removedLog.find((x) => x.mid === mid) || {}).name || '');
-    if (DFY.callBg) await DFY.callBg({ type: 'wl-promote', mid, name });
+    if (DFY.callBg) {
+      const saved = await DFY.callBg({ type: 'wl-promote', mid, name });
+      if (!saved || !saved.ok) return false;
+    }
     DFY.lists.white[mid] = { n: name, t: Date.now() };
     delete DFY.lists.block[mid];
     // 会话回收站同步移除该账号的记录，恢复动作立刻可见
     for (let i = removedLog.length - 1; i >= 0; i--) if (String(removedLog[i].mid) === mid) removedLog.splice(i, 1);
     if (a) judge(a);
     C.render();
+    return true;
   };
 
   /* ---------------- 框选手动屏蔽：引擎漏网之鱼的兜底 ----------------
@@ -871,7 +922,7 @@
             threadCounted.set(rootId, repN);
             DFY.counter.add(1, repN);
             const feats = featsOf(rootAcc);
-            logRemoved({ id: rootId, mid: rootIt && rootIt.mid, name: rootAcc ? rootAcc.acc.uname : '', text: ((rootIt && rootIt.text) || '').slice(0, 500), src: 'dom', score: feats.sc, feats: feats.f });
+            logRemoved({ id: rootId, mid: rootIt && rootIt.mid, name: rootAcc ? rootAcc.acc.uname : '', text: (rootIt && rootIt.text) || '', src: 'dom', score: feats.sc, feats: feats.f });
           }
         } else {
           if (threadCounted.has(rootId)) {
@@ -907,7 +958,7 @@
           countedEls.add(rootId);
           DFY.counter.add(1, 0);
           const feats = featsOf(rootAcc);
-          logRemoved({ id: rootId, mid: rootIt && rootIt.mid, name: rootAcc ? rootAcc.acc.uname : '', text: ((rootIt && rootIt.text) || '').slice(0, 500), src: 'dom', score: feats.sc, feats: feats.f });
+          logRemoved({ id: rootId, mid: rootIt && rootIt.mid, name: rootAcc ? rootAcc.acc.uname : '', text: (rootIt && rootIt.text) || '', src: 'dom', score: feats.sc, feats: feats.f });
         }
       } else {
         th.removeAttribute('data-dfy-pre');
@@ -927,7 +978,7 @@
             countedEls.add(x.id);
             DFY.counter.add(0, 1);
             const feats = featsOf(x.a);
-            logRemoved({ id: x.id, mid: x.it && x.it.mid, name: x.a ? x.a.acc.uname : '', text: ((x.it && x.it.text) || '').slice(0, 500), src: 'dom', score: feats.sc, feats: feats.f });
+            logRemoved({ id: x.id, mid: x.it && x.it.mid, name: x.a ? x.a.acc.uname : '', text: (x.it && x.it.text) || '', src: 'dom', score: feats.sc, feats: feats.f });
           }
         } else {
           x.el.removeAttribute('data-dfy-pre');

@@ -268,6 +268,24 @@
         reasons.push({ w: 26, why: `大部分评论都是 @ 召唤（${atAll.length}/${texts.length} 条）`, tag: 'pureAt' });
       }
     }
+    // 人工「不是 AI」负反馈：同一账号只计一次；同一特征需来自至少 3 个不同账号才降权。
+    // 仅校准正向文本/行为特征，单项最多 -4，总计最多 -8，避免少量反馈扭曲全局判定。
+    const hs = ctx.humanStats || {};
+    const adjusted = new Set();
+    let hPenalty = 0;
+    for (const r of reasons) {
+      if (hPenalty >= 8) break;
+      if (!r || r.w <= 0 || !r.why || !r.tag) continue;
+      if (['manual', 'level', 'avatar', 'mid', 'up', 'verify', 'vip', 'history', 'human-feedback'].includes(r.tag)) continue;
+      if (adjusted.has(r.why)) continue;
+      adjusted.add(r.why);
+      if ((+hs[r.why] || 0) >= 3) hPenalty += 4;
+    }
+    hPenalty = Math.min(8, hPenalty);
+    if (hPenalty) {
+      s -= hPenalty;
+      reasons.push({ w: -hPenalty, why: '人工反馈校准', tag: 'human-feedback' });
+    }
     // raw 不含「前科」，用来决定要不要记一笔前科，避免自我强化
     const raw = Math.max(0, Math.min(99, Math.round(s)));
     const prior = ctx.priorPages || 0;

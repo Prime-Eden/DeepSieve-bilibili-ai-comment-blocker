@@ -165,6 +165,7 @@ chrome.runtime.onMessage.addListener((msg, sender, send) => {
     if (msg.type === 'rl-clear') return rlClear();
     if (msg.type === 'il-append') return ilAppend(msg.kind, msg.added, msg.total);
     if (msg.type === 'ms-add') return msAdd(msg.tags);
+    if (msg.type === 'hf-add') return hfAdd(msg.mid, msg.name, msg.tags);
     return { ok: false, error: 'unknown' };
   })().then(send, (e) => send({ ok: false, error: String(e) }));
   return true;
@@ -323,6 +324,42 @@ function msAdd(tags) {
     return { ok: true };
   });
 }
+/** 负反馈：每个账号只计一次；反馈、特征计数、自动名单移除在同一写队列中完成。 */
+function hfAdd(mid, name, tags) {
+  mid = String(mid || '');
+  if (!mid) return Promise.resolve({ ok: false });
+  return enqueueBoth(['humanFeedback', 'humanStats', 'blocklist'], async () => {
+    const o = await chrome.storage.local.get(['humanFeedback', 'humanStats', 'blocklist']);
+    const feedback = asObject(o.humanFeedback);
+    const stats = asObject(o.humanStats);
+    const blocklist = asObject(o.blocklist);
+    const duplicate = !!feedback[mid];
+
+    if (!duplicate) {
+      feedback[mid] = { n: String(name || ''), t: Date.now() };
+      const mids = Object.keys(feedback);
+      if (mids.length > 2000) {
+        mids.sort((a, b) => (+feedback[a].t || 0) - (+feedback[b].t || 0));
+        for (const old of mids.slice(0, mids.length - 2000)) delete feedback[old];
+      }
+      // 同一账号内的特征已由调用端去重；后台再保证每个账号对每个特征最多贡献 1 次。
+      for (const k of Object.keys(tags || {})) {
+        if (!k) continue;
+        stats[k] = Math.max(0, +stats[k] || 0) + 1;
+      }
+    }
+    const keys = Object.keys(stats);
+    if (keys.length > 200) {
+      keys.sort((a, b) => (+stats[a] || 0) - (+stats[b] || 0));
+      for (const old of keys.slice(0, keys.length - 200)) delete stats[old];
+    }
+    const removedAutoBlock = !!(blocklist[mid] && !blocklist[mid].m);
+    if (removedAutoBlock) delete blocklist[mid];
+    if (!duplicate || removedAutoBlock) await chrome.storage.local.set({ humanFeedback: feedback, humanStats: stats, blocklist });
+    return { ok: true, duplicate, removedAutoBlock };
+  });
+}
+
 /** 导入历史（名单页最下方展示）：每次导入记一条，上限 50 */
 function ilAppend(kind, added, total) {
   return enqueue('importLog', async () => {

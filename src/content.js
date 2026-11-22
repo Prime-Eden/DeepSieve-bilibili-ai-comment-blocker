@@ -20,13 +20,15 @@
     });
   };
 
-  const [st] = await Promise.all([DFY.store.get(['settings', 'blocklist', 'whitelist', 'customWords', 'manualStats']), DFY.memory.load()]);
+  const [st] = await Promise.all([DFY.store.get(['settings', 'blocklist', 'whitelist', 'customWords', 'manualStats', 'humanStats', 'humanFeedback']), DFY.memory.load()]);
   DFY.settings = st.settings;
   DFY.settings.llmKey = DFY.settings.llmKey ? 'configured' : ''; // 真实密钥不出内容脚本（精判请求全部经后台）
   DFY.lists = { block: st.blocklist, white: st.whitelist };
   DFY.customWords = st.customWords || [];
   DFY.compileWords(DFY.customWords);
   DFY.manualStats = st.manualStats || {}; // 人工拉黑特征计数：判定引擎的强化反馈
+  DFY.humanStats = st.humanStats || {}; // 「不是 AI」的跨账号负反馈特征计数
+  DFY.humanFeedback = st.humanFeedback || {}; // 已纠正账号，防止同一账号重复计样本
 
   if (window.top !== window) return;
 
@@ -82,12 +84,14 @@
     }
     if (ch.whitelist) DFY.lists.white = ch.whitelist || {};
     if (ch.manualStats) DFY.manualStats = ch.manualStats || {};
+    if ('humanStats' in ch) DFY.humanStats = ch.humanStats || {};
+    if ('humanFeedback' in ch) DFY.humanFeedback = ch.humanFeedback || {};
     if ('seen' in ch) DFY.memory.seen = ch.seen || {};
     if ('llmCache' in ch) DFY.memory.llm = ch.llmCache || {};
     const additiveOnly = !!(ch.blocklist && added && !ch.whitelist && !ch.customWords && !ch.settings);
     if (additiveOnly) {
       if (added.length) DFY.comments.rejudgeMids(added);
-    } else if (ch.blocklist || ch.whitelist) DFY.comments.rejudgeAll();
+    } else if (ch.blocklist || ch.whitelist || ch.humanStats || ch.humanFeedback) DFY.comments.rejudgeAll();
     // 只有规则相关变更（名单/屏蔽词/设置）才全量下发；日志、前科、统计等高频写入不再触发
     if (ch.blocklist || ch.whitelist || ch.customWords || ch.settings) broadcastRules(!additiveOnly);
   });
