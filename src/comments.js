@@ -61,7 +61,7 @@
         const full = items.get(String(it.id || ''));
         const a = accounts.get(mid);
         const { sc, f } = featsOf(a);
-        logRemoved({ id: String(it.id || ''), mid, name: it.n || (full ? full.uname : ''), text: (full && full.text) || it.x, src: 'api', score: sc, feats: f });
+        logRemoved({ id: String(it.id || ''), mid, name: it.n || (full ? full.uname : ''), text: full ? full.text : it.x, src: 'api', score: sc, feats: f });
       }
       return;
     }
@@ -139,7 +139,7 @@
       a.verdict = { score: 0, level: 'human', reasons: [{ w: -99, why: '在白名单里' }] };
       return;
     }
-    const off = DFY.judge(a.acc, its.map((i) => ({ text: i.text, isReply: i.isReply })), { upMid, topCount: its.filter((i) => !i.isReply).length, priorPages: DFY.memory.prior(mid), calledOut: callout.get(String(mid)) || 0, sameSecond: sameSecondOf(a), aiTopic, manualStats: DFY.manualStats || {}, humanStats: DFY.humanStats || {} });
+    const off = DFY.judge(a.acc, its.map((i) => ({ text: i.text, isReply: i.isReply })), { upMid, topCount: its.filter((i) => !i.isReply).length, priorPages: DFY.memory.prior(mid), calledOut: callout.get(String(mid)) || 0, sameSecond: sameSecondOf(a), aiTopic, manualStats: DFY.manualStats || {} });
     let score = off.score;
     const reasons = off.reasons.slice();
     if (a.llm) score = Math.round(off.score * 0.45 + a.llm.ai * 0.55);
@@ -159,14 +159,9 @@
     } else if (blk && isUp) {
       reasons.unshift({ w: 0, why: 'UP 主本人，自动加入的屏蔽记录不生效' });
     }
-    // 用户明确反馈「不是 AI」后，该账号不再因普通自动评分被隐藏；手动拉黑和自定义屏蔽词优先。
-    if (DFY.humanFeedback && DFY.humanFeedback[mid] && !(blk && blk.m) && !wordHit) {
-      score = Math.min(score, Math.max(0, DFY.settings.threshold - 1));
-      reasons.unshift({ w: 0, why: '用户反馈：不是 AI', tag: 'human-feedback-account' });
-    }
     a.verdict = { score, offline: off.score, level: DFY.levelOf(score, DFY.settings.threshold), reasons };
     // 只凭本页证据就够得上大肥鱼时才记前科（名单、精判、屏蔽词都不算，避免自我强化）
-    if (off.raw >= DFY.settings.threshold && (!a.llm || a.llm.ai >= 50) && !wordHit && !(DFY.humanFeedback && DFY.humanFeedback[mid])) DFY.memory.mark(mid, a.acc.uname);
+    if (off.raw >= DFY.settings.threshold && (!a.llm || a.llm.ai >= 50) && !wordHit) DFY.memory.mark(mid, a.acc.uname);
   }
   /** 只重判指定账号：名单纯新增（别的标签页 / 本页自动累积）时用，免去全量重判与全量重扫 */
   C.rejudgeMids = function (mids) {
@@ -243,11 +238,17 @@
    * fish（≥阈值）无感隐藏；suspect（可疑）保留可见但标注「可疑 N%」，
    * DeepSeek 参与过判定时追加 DS 角标；悬停显示评分明细。纯信息展示，点击无动作。 */
   const SUS_CSS = `
-.dfy-sus{display:inline-flex;align-items:center;gap:5px;margin-left:6px;height:20px;padding:0 3px 0 8px;border-radius:999px;background:rgba(150,150,165,.16);font:500 11px/20px -apple-system,BlinkMacSystemFont,\"PingFang SC\",\"Microsoft YaHei\",sans-serif;vertical-align:middle;cursor:help;user-select:none;color:inherit}
+.dfy-sus{display:inline-flex;align-items:center;gap:4px;margin-left:6px;height:20px;padding:0 7px;border-radius:999px;background:rgba(150,150,165,.16);font:500 11px/20px -apple-system,BlinkMacSystemFont,\"PingFang SC\",\"Microsoft YaHei\",sans-serif;vertical-align:middle;cursor:help;user-select:none;color:inherit;overflow:hidden;transition:padding .15s ease}
+.dfy-sus .ic{flex:none;color:#d9822b}
 .dfy-sus b{font-weight:700;font-variant-numeric:tabular-nums}
 .dfy-sus .ds{font-style:normal;font-size:9px;font-weight:700;line-height:14px;padding:0 4px;border-radius:4px;background:rgba(61,91,214,.18);color:#5a78e6}
-.dfy-sus .ks{border:0;background:transparent;color:inherit;opacity:.72;font:600 10.5px/16px -apple-system,BlinkMacSystemFont,\"PingFang SC\",\"Microsoft YaHei\",sans-serif;padding:0 7px;border-radius:999px;cursor:pointer;transition:background .12s ease,opacity .12s ease,color .12s ease}
-.dfy-sus .ks:hover{background:#c2455a;color:#fff;opacity:1}
+.dfy-sus .acts{display:inline-flex;align-items:center;gap:1px;max-width:0;opacity:0;overflow:hidden;transition:max-width .18s ease,opacity .15s ease}
+.dfy-sus:hover,.dfy-sus:focus-within{padding-right:3px}
+.dfy-sus:hover .acts,.dfy-sus:focus-within .acts{max-width:180px;opacity:1;margin-left:3px;padding-left:3px;box-shadow:inset 1px 0 0 rgba(150,150,165,.35)}
+.dfy-sus .acts button{border:0;background:transparent;color:inherit;opacity:.8;font:600 10.5px/16px -apple-system,BlinkMacSystemFont,\"PingFang SC\",\"Microsoft YaHei\",sans-serif;padding:0 6px;border-radius:999px;cursor:pointer;white-space:nowrap;transition:background .12s ease,opacity .12s ease,color .12s ease}
+.dfy-sus .acts .ks:hover{background:#c2455a;color:#fff;opacity:1}
+.dfy-sus .acts .no:hover{background:#2546b8;color:#fff;opacity:1}
+.dfy-sus .acts .pass:hover{background:rgba(120,125,140,.4);opacity:1}
 `;
   let susTip = null;
   function susTipShow(anchor, a) {
@@ -265,7 +266,7 @@
       `<div style="font-weight:700;margin-bottom:2px">${DFY.esc(a.acc.uname)} · 可疑 ${v.score == null ? '?' : v.score}%${a.llm ? ` · DeepSeek ${a.llm.ai}%` : ''}</div>` +
       (reasons ? `<div style="opacity:.85">${reasons}</div>` : '<div style="opacity:.7">暂无明显特征</div>') +
       (a.llm ? `<div style="margin-top:3px;opacity:.85">DeepSeek：${DFY.esc(a.llm.reason || '')}</div>` : '') +
-      '<div style="margin-top:4px;opacity:.55">点「拉黑」可直接屏蔽</div>';
+      '<div style="margin-top:4px;opacity:.55">悬停徽标可拉黑 / 标记「不是」/ 放过</div>';
     const r = anchor.getBoundingClientRect();
     susTip.style.display = 'block';
     const tw = susTip.offsetWidth, thh = susTip.offsetHeight;
@@ -283,14 +284,18 @@
     'click',
     (e) => {
       const path = e.composedPath ? e.composedPath() : [];
-      const ks = path.find((n) => n.nodeType === 1 && n.classList && n.classList.contains('ks'));
-      if (!ks) return;
+      const btn = path.find((n) => n.nodeType === 1 && n.classList && (n.classList.contains('ks') || n.classList.contains('no') || n.classList.contains('pass')));
+      if (!btn) return;
       const sus = path.find((n) => n.nodeType === 1 && n.hasAttribute && n.hasAttribute('data-dfy-sus'));
       if (!sus) return;
       e.stopPropagation();
       e.preventDefault();
       const mid = sus.getAttribute('data-dfy-sus');
-      if (mid) blockMids([mid], 99);
+      if (mid) {
+        if (btn.classList.contains('no')) C.restore(mid); // 不是 AI：放行 + 记为误判
+        else if (btn.classList.contains('pass')) C.restore(mid, { learn: false }); // 放过：只放行，不影响判定
+        else blockMids([mid], 99);
+      }
       susTipHide();
     },
     true
@@ -593,6 +598,21 @@
     { capture: true, passive: true }
   );
 
+  /** 反馈学习用的特征标签：只学文本与行为特征。Lv / 头像 / 号段这类账号静态特征几乎人人有份，学了只会推高误杀。
+   *  sign = +1 拉黑，−1 放过。 */
+  const LEARN_SKIP = new Set(['manual', 'level', 'avatar', 'mid']);
+  function learnTags(reasons, sign) {
+    const out = {};
+    for (const r of reasons || []) if (r.w > 0 && r.why && !LEARN_SKIP.has(r.tag)) out[r.why] = sign;
+    return out;
+  }
+  /** 「放过」的反馈：把该账号命中的文本 / 行为特征记为误判，写进 manualStats 的净确认数（−1）。 */
+  C.feedbackHuman = async function (reasons) {
+    const tags = learnTags(reasons, -1);
+    if (Object.keys(tags).length && DFY.callBg) await DFY.callBg({ type: 'ms-add', tags });
+    return Object.keys(tags).length;
+  };
+
   /** 手动拉黑（框选/徽标清理共用）：名单写入走后台队列，judge 后 doRender 自动隐藏/计数/记录 */
   async function blockMids(mids, score, opts = {}) {
     const list = [...mids].filter((mid) => !DFY.lists.white[mid]);
@@ -612,9 +632,7 @@
       const acc = a ? a.acc : null;
       entries[mid] = { n: acc ? acc.uname : '', a: acc ? acc.avatar : '', t: Date.now(), s: score == null ? (a && a.verdict ? a.verdict.score : 0) : score, m: 1 }; // m:1 = 用户明确操作
       const rs = (a && a.verdict && a.verdict.reasons) || [];
-      // 基础比例校准：Lv/头像/号段这类账号静态特征几乎人人有份，学了只会推高误杀；只学文本与行为特征
-      const skip = new Set(['manual', 'level', 'avatar', 'mid']);
-      for (const r of rs) if (r.w > 0 && r.why && !skip.has(r.tag)) stats[r.why] = (stats[r.why] || 0) + 1;
+      for (const [why, v] of Object.entries(learnTags(rs, 1))) stats[why] = (stats[why] || 0) + v;
     }
     if (DFY.callBg) {
       await DFY.callBg({ type: 'bl-add', entries });
@@ -633,47 +651,6 @@
     }
     return list.length;
   }
-
-  /** 悬浮台使用：按账号拉黑，沿用现有手动名单与特征强化流程。 */
-  C.blockMid = async function (mid) {
-    mid = String(mid || '');
-    if (!mid || DFY.lists.white[mid]) return false;
-    return (await blockMids([mid], null)) > 0;
-  };
-
-  /** 「不是」：按账号去重提交负反馈，不加入白名单；自动屏蔽项由后台同步移除。 */
-  C.feedbackNotAI = async function (mid) {
-    mid = String(mid || '');
-    if (!mid) return false;
-    const feedback = DFY.humanFeedback || (DFY.humanFeedback = {});
-    const a = accounts.get(mid);
-    const record = removedLog.find((x) => String(x.mid) === mid);
-    const name = (a && a.acc && a.acc.uname) || (record && record.name) || '';
-    const excluded = new Set(['manual', 'level', 'avatar', 'mid', 'up', 'verify', 'vip', 'history', 'human-feedback']);
-    const tags = {};
-    for (const r of (a && a.verdict && a.verdict.reasons) || []) {
-      if (r && r.w > 0 && r.why && r.tag && !excluded.has(r.tag)) tags[r.why] = 1;
-    }
-    if (!DFY.callBg) return false;
-    const saved = await DFY.callBg({ type: 'hf-add', mid, name, tags });
-    if (!saved || !saved.ok) return false;
-
-    feedback[mid] = feedback[mid] || { n: name, t: Date.now() };
-    if (saved.removedAutoBlock) delete DFY.lists.block[mid];
-    DFY.humanStats = (await DFY.store.get('humanStats')) || {};
-    // DOM 评论按新分数恢复；接口层已拦截的内容需刷新页面重新请求。
-    if (a) judge(a);
-    C.render();
-    return true;
-  };
-
-  /** 「放过」：加入放行名单，沿用现有恢复流程。 */
-  C.passMid = async function (mid) {
-    mid = String(mid || '');
-    if (!mid) return false;
-    await C.restore(mid);
-    return !!DFY.lists.white[mid];
-  };
 
   /** 撤销一次手动拉黑：移出名单 + 恢复原评分，评论立即回来 */
   async function undoBlock(mid) {
@@ -710,7 +687,7 @@
       info.after(badge);
     }
     badge.setAttribute('data-dfy-sus', a.acc.mid);
-    const html = `可疑 <b>${a.verdict.score}%</b>${a.llm ? '<i class="ds">DS</i>' : ''}<button class="ks" title="立即拉黑该账号（可在名单页恢复）">拉黑</button>`;
+    const html = `<svg class="ic" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-label="可疑账号"><path d="M12 3l10 18H2z"/><path d="M12 10v5M12 18.5v.01"/></svg><b>${a.verdict.score}%</b>${a.llm ? '<i class="ds">DS</i>' : ''}<span class="acts"><button class="ks" title="拉黑该账号（可在名单页移除）">拉黑</button><button class="no" title="不是 AI：加入放行名单，并把命中的特征记为误判">不是</button><button class="pass" title="不隐藏这个账号，不记为误判">放过</button></span>`;
     if (badge.dataset.v !== html) {
       badge.dataset.v = html;
       badge.innerHTML = html;
@@ -788,23 +765,22 @@
   }
   C.removedList = () => removedLog.slice(0, 100);
   /** 恢复 = 加入白名单 + 移出屏蔽名单（后台原子完成）；接口层拦掉的评论刷新页面后才会重新出现 */
-  C.restore = async function (mid) {
+  /** 放行一个账号。opts.learn 默认 true：同时把它命中的特征记为误判（「不是 AI」）；false = 只放行（「放过」）。 */
+  C.restore = async function (mid, opts = {}) {
     mid = String(mid || '');
-    if (!mid) return false;
-    if (DFY.lists.white[mid]) return true;
+    if (!mid || DFY.lists.white[mid]) return;
     const a = accounts.get(mid);
     const name = a ? a.acc.uname : ((removedLog.find((x) => x.mid === mid) || {}).name || '');
-    if (DFY.callBg) {
-      const saved = await DFY.callBg({ type: 'wl-promote', mid, name });
-      if (!saved || !saved.ok) return false;
-    }
+    const reasons = a && a.verdict ? a.verdict.reasons : []; // 放行前取依据，放行后判定会变
+    if (DFY.callBg) await DFY.callBg({ type: 'wl-promote', mid, name });
+    const learned = opts.learn === false ? 0 : await C.feedbackHuman(reasons);
+    if (DFY.bubble && DFY.bubble.flash) DFY.bubble.flash(opts.learn === false ? '已放过' : learned ? '已标记为不是 AI，相关特征已记为误判' : '已标记为不是 AI');
     DFY.lists.white[mid] = { n: name, t: Date.now() };
     delete DFY.lists.block[mid];
     // 会话回收站同步移除该账号的记录，恢复动作立刻可见
     for (let i = removedLog.length - 1; i >= 0; i--) if (String(removedLog[i].mid) === mid) removedLog.splice(i, 1);
     if (a) judge(a);
     C.render();
-    return true;
   };
 
   /* ---------------- 框选手动屏蔽：引擎漏网之鱼的兜底 ----------------
@@ -922,7 +898,7 @@
             threadCounted.set(rootId, repN);
             DFY.counter.add(1, repN);
             const feats = featsOf(rootAcc);
-            logRemoved({ id: rootId, mid: rootIt && rootIt.mid, name: rootAcc ? rootAcc.acc.uname : '', text: (rootIt && rootIt.text) || '', src: 'dom', score: feats.sc, feats: feats.f });
+            logRemoved({ id: rootId, mid: rootIt && rootIt.mid, name: rootAcc ? rootAcc.acc.uname : '', text: ((rootIt && rootIt.text) || '').slice(0, 500), src: 'dom', score: feats.sc, feats: feats.f });
           }
         } else {
           if (threadCounted.has(rootId)) {
@@ -958,7 +934,7 @@
           countedEls.add(rootId);
           DFY.counter.add(1, 0);
           const feats = featsOf(rootAcc);
-          logRemoved({ id: rootId, mid: rootIt && rootIt.mid, name: rootAcc ? rootAcc.acc.uname : '', text: (rootIt && rootIt.text) || '', src: 'dom', score: feats.sc, feats: feats.f });
+          logRemoved({ id: rootId, mid: rootIt && rootIt.mid, name: rootAcc ? rootAcc.acc.uname : '', text: ((rootIt && rootIt.text) || '').slice(0, 500), src: 'dom', score: feats.sc, feats: feats.f });
         }
       } else {
         th.removeAttribute('data-dfy-pre');
@@ -978,7 +954,7 @@
             countedEls.add(x.id);
             DFY.counter.add(0, 1);
             const feats = featsOf(x.a);
-            logRemoved({ id: x.id, mid: x.it && x.it.mid, name: x.a ? x.a.acc.uname : '', text: (x.it && x.it.text) || '', src: 'dom', score: feats.sc, feats: feats.f });
+            logRemoved({ id: x.id, mid: x.it && x.it.mid, name: x.a ? x.a.acc.uname : '', text: ((x.it && x.it.text) || '').slice(0, 500), src: 'dom', score: feats.sc, feats: feats.f });
           }
         } else {
           x.el.removeAttribute('data-dfy-pre');

@@ -234,17 +234,22 @@
     }
     // 人工确认特征强化：手动拉黑样本中高频命中的特征适度加权（宁滥勿放的温和实现）
     // 防自激：排除 manual 标签自身；防过拟合：需 ≥3 次人工确认、总加成上限 8
+    // manualStats 记的是「净确认数」= 拉黑次数 − 放过次数：≥3 的特征加分，≤−3 的特征减分（各自总量上限 8）
     const ms = ctx.manualStats || {};
-    let mBoost = 0;
+    let mBoost = 0, mCut = 0;
     for (const r of reasons) {
-      if (mBoost >= 8) break;
-      if (r.w > 0 && r.tag !== 'manual' && ms[r.why] >= 3) {
-        mBoost += 4;
-      }
+      if (r.w <= 0 || r.tag === 'manual') continue;
+      const c = ms[r.why] || 0;
+      if (c >= 3 && mBoost < 8) mBoost += 4;
+      else if (c <= -3 && mCut < 8) mCut += 4;
     }
     if (mBoost) {
       s += mBoost;
       reasons.push({ w: mBoost, why: '人工拉黑样本高频特征', tag: 'manual' });
+    }
+    if (mCut) {
+      s -= mCut;
+      reasons.push({ w: -mCut, why: '人工放过样本高频特征', tag: 'manual' });
     }
     // 纯 @ 召唤：剥掉 @、emoji、标点后几乎无实质内容的评论。
     // 账号发出的评论全部是 @（本页 ≥3 条）→ 行为级实锤，无视人类减分直接判鱼（用户授权：宁滥勿放）；
@@ -267,24 +272,6 @@
         s += 26;
         reasons.push({ w: 26, why: `大部分评论都是 @ 召唤（${atAll.length}/${texts.length} 条）`, tag: 'pureAt' });
       }
-    }
-    // 人工「不是 AI」负反馈：同一账号只计一次；同一特征需来自至少 3 个不同账号才降权。
-    // 仅校准正向文本/行为特征，单项最多 -4，总计最多 -8，避免少量反馈扭曲全局判定。
-    const hs = ctx.humanStats || {};
-    const adjusted = new Set();
-    let hPenalty = 0;
-    for (const r of reasons) {
-      if (hPenalty >= 8) break;
-      if (!r || r.w <= 0 || !r.why || !r.tag) continue;
-      if (['manual', 'level', 'avatar', 'mid', 'up', 'verify', 'vip', 'history', 'human-feedback'].includes(r.tag)) continue;
-      if (adjusted.has(r.why)) continue;
-      adjusted.add(r.why);
-      if ((+hs[r.why] || 0) >= 3) hPenalty += 4;
-    }
-    hPenalty = Math.min(8, hPenalty);
-    if (hPenalty) {
-      s -= hPenalty;
-      reasons.push({ w: -hPenalty, why: '人工反馈校准', tag: 'human-feedback' });
     }
     // raw 不含「前科」，用来决定要不要记一笔前科，避免自我强化
     const raw = Math.max(0, Math.min(99, Math.round(s)));

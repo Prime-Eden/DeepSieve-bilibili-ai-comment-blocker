@@ -221,7 +221,7 @@
           .slice(0, 50)
           .map(
             (x) =>
-              `<li><a class="n" href="https://space.bilibili.com/${esc(x.mid || '')}" target="_blank">${esc(x.name || x.mid || '未知账号')}</a><span class="d" title="${esc(x.text || '')}">${esc((x.text || '').slice(0, 18))}${x.src === 'api' ? ' · 拦截' : ''}</span><button data-rb="${esc(x.mid || '')}">恢复</button></li>`
+              `<li><a class="n" href="https://space.bilibili.com/${esc(x.mid || '')}" target="_blank">${esc(x.name || x.mid || '未知账号')}</a><span class="d" title="${esc(x.text || '')}">${esc((x.text || '').slice(0, 18))}${x.src === 'api' ? ' · 拦截' : ''}</span><button data-rb="${esc(x.mid || '')}" title="不是 AI：加入放行名单，并把命中的特征记为误判">不是</button><button data-rp="${esc(x.mid || '')}" title="不隐藏这个账号，不记为误判">放过</button></li>`
           )
           .join('')
       : '<li class="empty">本页还没有隐藏评论</li>';
@@ -237,11 +237,12 @@
     setTimeout(() => URL.revokeObjectURL(url), 2000);
   };
   document.addEventListener('click', async (e) => {
-    const rb = e.target.dataset && e.target.dataset.rb;
+    const ds = e.target.dataset || {};
+    const rb = ds.rb || ds.rp;
     if (!rb) return;
     const tab = hereTab;
     if (!tab || tab.id == null) return;
-    await ask(tab.id, { dfy: 'restore', mid: rb });
+    await ask(tab.id, { dfy: 'restore', mid: rb, learn: !ds.rp }); // 不是 = 记为误判；放过 = 只放行
     renderRemoved();
   });
 

@@ -40,7 +40,7 @@
 
 /* 面板：颜色全部走变量，深色只改变量（旧写法 .dk .menu 永远选不中自己，深色底色失效） */
 .menu{--ink:#1f2329;--mut:#667085;--faint:#98a2b3;--surface:#fff;--line:rgba(16,24,40,.08);--field:rgba(16,24,40,.06);--tint:rgba(37,70,184,.08);--tint-h:rgba(37,70,184,.14);--acc:#2546b8;--acc-h:#1d3a9c;--acc-t:#2546b8;--danger:#c2455a;
-  position:absolute;right:0;bottom:calc(100% + 10px);width:276px;max-width:calc(100vw - 16px);padding:14px;border-radius:16px;background:var(--surface);border:1px solid var(--line);box-shadow:0 1px 2px rgba(16,24,40,.06),0 18px 40px -14px rgba(16,24,40,.32);color:var(--ink)}
+  position:absolute;right:0;bottom:calc(100% + 10px);width:276px;padding:14px;border-radius:16px;background:var(--surface);border:1px solid var(--line);box-shadow:0 1px 2px rgba(16,24,40,.06),0 18px 40px -14px rgba(16,24,40,.32);color:var(--ink)}
 .menu.dk{--ink:#eceef3;--mut:#a3a9b8;--faint:#7c8392;--surface:#25272d;--line:rgba(255,255,255,.1);--field:rgba(255,255,255,.08);--tint:rgba(143,176,255,.12);--tint-h:rgba(143,176,255,.2);--acc:#4a6ee0;--acc-h:#5b7be8;--acc-t:#9db8ff;--danger:#e0707f}
 .hd{display:flex;align-items:center;gap:8px;margin-bottom:12px}
 .hd b{font-size:14px;font-weight:700}
@@ -80,29 +80,23 @@
 .recent-hd .rc{color:var(--faint);font-variant-numeric:tabular-nums}
 .recent-hd button{margin-left:auto;border:0;background:none;color:var(--acc-t);font-size:11.5px;cursor:pointer;padding:0}
 .recent-hd button:hover{text-decoration:underline}
-.rb{display:block;padding:6px;margin:0 -6px;border-radius:8px;font-size:12px;line-height:1.5}
-.rb:hover,.rb.expanded{background:var(--field)}
-.rb-head{display:flex;align-items:center;gap:7px;min-width:0}
-.rb .user{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--ink);font-weight:600;text-decoration:none}
-.rb .user:hover{color:var(--acc-t);text-decoration:underline}
-.rb .risk-area{position:relative;flex:none}
-.rb .risk{border:0;border-radius:999px;padding:0 8px;background:var(--field);color:var(--mut);font-size:10.5px;line-height:22px;white-space:nowrap;cursor:pointer}
-.rb .risk.sus{background:rgba(224,150,74,.13);color:#b7772f}
-.rb .risk.fish{background:rgba(224,86,107,.12);color:var(--danger)}
-.rb-preview{margin-top:3px;color:var(--mut);font-size:11.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.rb .expand{flex:none;border:0;background:none;color:var(--mut);font-size:11px;cursor:pointer;padding:2px}
-.rb-body{display:none;margin-top:5px;padding:6px 8px;border-radius:7px;background:var(--field);color:var(--mut);font-size:11.5px;line-height:1.55;white-space:pre-wrap;overflow-wrap:anywhere;max-height:104px;overflow:auto}
-.rb.expanded .rb-preview{display:none}
-.rb.expanded .rb-body{display:block}
-.rb-meta{display:none;margin-top:4px;color:var(--faint);font-size:10px}
-.rb.expanded .rb-meta{display:block}
-.rb-done{flex:none;color:var(--faint);font-size:10.5px;white-space:nowrap}
-.rb-actions{display:none;position:absolute;z-index:5;top:calc(100% + 4px);right:0;gap:4px;padding:5px;border:1px solid var(--line);border-radius:9px;background:var(--surface);box-shadow:0 5px 16px rgba(16,24,40,.16);white-space:nowrap}
-.rb .risk-area:hover .rb-actions,.rb .risk-area.open .rb-actions,.rb .risk-area:focus-within .rb-actions{display:flex}
-.rb .rb-actions button{border:1px solid var(--line);border-radius:7px;background:var(--surface);color:var(--mut);font-size:11px;padding:4px 7px;cursor:pointer}
-.rb .rb-actions button:hover{background:var(--tint);color:var(--acc-t)}
-.rb .rb-actions button.danger{color:var(--danger)}
-@media (hover:none){.rb .risk-area:not(.open) .rb-actions{display:none}.rb .risk-area.open .rb-actions{display:flex}}
+.rb{display:flex;align-items:center;gap:8px;padding:5px 6px;margin:0 -6px;border-radius:8px;font-size:12px;line-height:1.5}
+.rb:hover{background:var(--field)}
+.rb .t{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rb .txt{color:var(--faint)}
+.rb button{flex:none;border:0;background:none;color:var(--acc-t);font-size:11.5px;cursor:pointer;padding:0 2px}
+.rb button:hover{text-decoration:underline}
+.recent-hd button + button{margin-left:10px}
+.rlist.open{max-height:264px;overflow-y:auto;margin:0 -6px;padding:0 6px}
+.rb.open{align-items:flex-start;padding:7px 6px}
+.rb-main{flex:1;min-width:0}
+.rb-hd{display:flex;align-items:center;gap:6px;margin-bottom:2px;font-size:11.5px}
+.rb-hd a,.rb .t a{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600;color:var(--ink);text-decoration:none}
+.rb-hd a:hover,.rb .t a:hover{color:var(--acc-t);text-decoration:underline}
+.rb-acts{flex:none;display:flex;gap:8px}
+.rb.open .rb-acts{flex-direction:column;gap:2px;align-items:flex-end}
+.rb-hd i{flex:none;font-style:normal;font-size:10px;line-height:16px;padding:0 5px;border-radius:999px;background:var(--field);color:var(--faint);font-variant-numeric:tabular-nums}
+.rb-tx{font-size:12px;line-height:1.55;color:var(--ink);word-break:break-all;white-space:pre-wrap;max-height:7.8em;overflow:hidden}
 .empty{font-size:11.5px;color:var(--faint);padding:4px 0 6px}
 .tools{display:flex;align-items:center;gap:4px;margin-top:8px;padding-top:10px;border-top:1px solid var(--line)}
 .tool{width:32px;height:32px;display:flex;align-items:center;justify-content:center;border:0;border-radius:9px;background:transparent;color:var(--mut);cursor:pointer}
@@ -332,8 +326,7 @@
   const BAND_LABELS = ['人类', '低疑', '可疑', '判鱼'];
 
   let menuSig = '';
-  // 仅保留本页最近操作状态，避免操作后重绘又把同一条操作菜单显示出来。
-  const recentAction = new Map();
+  let recentOpen = false; // 「最近隐藏」是否展开（展开后显示评论全文与判定依据）
   function renderMenu() {
     if (!menu) return;
     const s = statsSafe();
@@ -342,15 +335,14 @@
     const bands = s.bands || [0, 0, 0, 0];
     const sum = bands[0] + bands[1] + bands[2] + bands[3];
     const allRemoved = DFY.comments.removedList ? DFY.comments.removedList() : [];
-    const recent = allRemoved.slice(0, 3);
+    const recent = allRemoved.slice(0, recentOpen ? 30 : 3);
     const enabled = !!(DFY.settings && DFY.settings.enabled);
     const showCount = !!(DFY.settings && DFY.settings.showCount);
     const ms = DFY.manualStats || {};
-    const mKeys = Object.keys(ms).sort((a, b) => ms[b] - ms[a]);
+    const mKeys = Object.keys(ms).filter((k) => ms[k] > 0).sort((a, b) => ms[b] - ms[a]); // 只展示净确认数为正的（放过记为负）
     const mCount = mKeys.reduce((s2, k) => s2 + ms[k], 0);
     // 签名对比：内容没变就一个字都不写；记录 ID 一并纳入，保证恢复/替换后也会刷新
-    const recentSig = recent.map((x) => [x.id, x.mid, x.name, x.score, String(x.text || '').length, x.src, recentAction.get(String(x.mid || '')) || '']);
-    const sig = JSON.stringify([n, s.accounts || 0, bands.join(','), th, enabled, showCount, allRemoved.length, recentSig, mCount, mKeys.slice(0, 2).join(','), ver(), dark()]);
+    const sig = JSON.stringify([n, s.accounts || 0, bands.join(','), th, enabled, showCount, allRemoved.length, recentOpen, recent.map((x) => x.id).join(','), mCount, mKeys.slice(0, 2).join(','), ver(), dark()]);
     if (sig === menuSig) return;
     menuSig = sig;
     menu.classList.toggle('dk', dark());
@@ -366,7 +358,7 @@
 </div>
 <div class="field"><span class="field-label">灵敏度</span><div class="seg">${PRESETS.map((p2) => `<button data-th="${p2.t}" title="隐藏门槛 ${p2.t}%：嫌疑分达到才隐藏，越严格门槛越低">${p2.label}</button>`).join('')}</div></div>
 <div class="learn" style="display:none"><span class="lt">人工强化</span><span class="lv"></span></div>
-<div class="recent"><div class="recent-hd"><span>最近隐藏</span><span class="rc"></span><button data-a="all" title="在设置页查看全部记录">全部记录 ↗</button></div><div class="rlist"></div></div>
+<div class="recent"><div class="recent-hd"><span>最近隐藏</span><span class="rc"></span><button data-a="expand" class="exp" title="展开后显示评论全文和判定依据">展开</button><button data-a="all" title="在设置页查看全部记录">全部记录 ↗</button></div><div class="rlist"></div></div>
 <div class="tools">
   <button class="tool" data-a="rescan" title="重新扫描本页">${DFY.icon('search', 16, 2)}</button>
   <button class="tool" data-a="count" title="已清计数条">${DFY.icon('report', 16, 2)}</button>
@@ -389,37 +381,20 @@
     learn.style.display = mKeys.length ? '' : 'none';
     if (mKeys.length) q('.lv').textContent = `裁决 ${mCount} 次 · ${mKeys.slice(0, 2).map((k) => `${k.length > 9 ? k.slice(0, 9) + '…' : k} ×${ms[k]}`).join(' · ')}`;
     q('.rc').textContent = allRemoved.length ? `${allRemoved.length} 条` : '';
-    const recentHtml = recent.length
-      ? recent.map((x) => {
-          const mid = String(x.mid || '');
-          const score = x.score == null ? null : Number(x.score);
-          const scoreText = Number.isFinite(score) ? `可疑 ${Math.max(0, Math.min(99, Math.round(score)))}%` : '已隐藏';
-          const level = !Number.isFinite(score) ? '' : score >= th ? 'fish' : score >= Math.max(25, th - 25) ? 'sus' : '';
-          const href = /^\d+$/.test(mid) ? `https://space.bilibili.com/${mid}` : '';
-          const fullText = String(x.text || '没有保存评论内容');
-          const previewText = fullText.replace(/\s+/g, ' ');
-          const previewChars = Array.from(previewText);
-          const preview = previewChars.slice(0, 52).join('');
-          const done = recentAction.get(mid) || '';
-          return `<div class="rb" data-mid="${esc(mid)}">
-            <div class="rb-head">
-              ${href ? `<a class="user" href="${href}" target="_blank" rel="noopener noreferrer" title="打开 B 站主页">${esc(x.name || mid)} ↗</a>` : `<span class="user">${esc(x.name || mid || '?')}</span>`}
-              <span class="risk-area"><button class="risk ${level}" data-risk="${esc(mid)}" aria-expanded="false" title="悬停或点击展开操作">${scoreText}</button>
-                ${done ? `<span class="rb-done">${esc(done)}</span>` : `<span class="rb-actions">
-                  <button class="danger" data-ract="block" data-mid="${esc(mid)}" title="加入手动屏蔽名单">拉黑</button>
-                  <button data-ract="notai" data-mid="${esc(mid)}" title="反馈这次判定不是 AI">不是</button>
-                  <button data-ract="pass" data-mid="${esc(mid)}" title="加入放行名单">放过</button>
-                </span>`}
-              </span>
-              <button class="expand" data-expand="${esc(mid)}" aria-expanded="false">展开⌄</button>
-            </div>
-            <div class="rb-preview">${esc(preview)}${previewChars.length > 52 ? '…' : ''}</div>
-            <div class="rb-body">${esc(fullText)}</div>
-            <div class="rb-meta">${x.src === 'api' ? '接口拦截' : '页面隐藏'}</div>
-          </div>`;
-        }).join('')
-      : '<div class="empty">本页还没有隐藏过评论</div>';
+    const srcTag = (x) => (x.src === 'api' ? '接口拦截' : '页面隐藏');
+    const nameHtml = (x) => (x.mid ? `<a href="https://space.bilibili.com/${esc(x.mid)}" target="_blank" rel="noopener" title="打开主页，查看详细判定">${esc(x.name || x.mid)}</a>` : `<span>${esc(x.name || '?')}</span>`);
+    const BTN_NO = (x) => `<button data-rb="${esc(x.mid || '')}" title="不是 AI：加入放行名单，并把命中的特征记为误判">不是</button>`;
+    const BTN_PASS = (x) => `<button data-rp="${esc(x.mid || '')}" title="不隐藏这个账号，不记为误判">放过</button>`;
+    const rowHtml = (x) =>
+      recentOpen
+        ? `<div class="rb open" title="${esc(srcTag(x))}"><div class="rb-main"><div class="rb-hd">${nameHtml(x)}${x.score != null ? `<i>${esc(x.score)}%</i>` : ''}</div><div class="rb-tx">${esc((x.text || '').slice(0, 300))}</div></div><div class="rb-acts">${BTN_NO(x)}${BTN_PASS(x)}</div></div>`
+        : `<div class="rb" title="${esc((x.text || '') + '（' + srcTag(x) + '）')}"><span class="t">${nameHtml(x)}<span class="txt"> · ${esc((x.text || '').slice(0, 16))}</span></span><span class="rb-acts">${BTN_NO(x)}</span></div>`;
+    const recentHtml = recent.length ? recent.map(rowHtml).join('') : '<div class="empty">本页还没有隐藏过评论</div>';
     const rlist = q('.rlist');
+    rlist.classList.toggle('open', recentOpen && recent.length > 0);
+    const expBtn = q('[data-a="expand"]');
+    expBtn.textContent = recentOpen ? '收起' : '展开';
+    expBtn.style.display = allRemoved.length ? '' : 'none';
     if (rlist.dataset.v !== recentHtml) {
       rlist.dataset.v = recentHtml;
       rlist.innerHTML = recentHtml;
@@ -449,60 +424,18 @@
         renderMenu();
         return;
       }
-      const expand = e.target.closest('[data-expand]');
-      if (expand) {
+      const rb = e.target.closest('[data-rb]');
+      if (rb) {
         e.stopPropagation();
-        const card = expand.closest('.rb');
-        const wasOpen = card.classList.contains('expanded');
-        menu.querySelectorAll('.rb.expanded').forEach((el) => el.classList.remove('expanded'));
-        menu.querySelectorAll('[data-expand]').forEach((el) => {
-          el.textContent = '展开⌄';
-          el.setAttribute('aria-expanded', 'false');
-        });
-        if (!wasOpen) {
-          card.classList.add('expanded');
-          expand.textContent = '收起⌃';
-          expand.setAttribute('aria-expanded', 'true');
-        }
+        await DFY.comments.restore(rb.dataset.rb); // 不是 AI：放行 + 记为误判
+        renderMenu();
         return;
       }
-      const risk = e.target.closest('[data-risk]');
-      if (risk) {
+      const rp = e.target.closest('[data-rp]');
+      if (rp) {
         e.stopPropagation();
-        const area = risk.closest('.risk-area');
-        const on = area.classList.toggle('open');
-        risk.setAttribute('aria-expanded', String(on));
-        return;
-      }
-      const ract = e.target.closest('[data-ract]');
-      if (ract) {
-        e.stopPropagation();
-        const mid = String(ract.dataset.mid || '');
-        if (!mid) return;
-        const card = ract.closest('.rb');
-        const buttons = card ? [...card.querySelectorAll('[data-ract]')] : [ract];
-        buttons.forEach((b) => (b.disabled = true));
-        try {
-          let ok = false;
-          if (ract.dataset.ract === 'block') ok = await DFY.comments.blockMid(mid);
-          else if (ract.dataset.ract === 'notai') ok = await DFY.comments.feedbackNotAI(mid);
-          else if (ract.dataset.ract === 'pass') ok = await DFY.comments.passMid(mid);
-          if (!ok) throw new Error('action-not-applied');
-          const actionLabel = ract.dataset.ract === 'block' ? '已拉黑' : ract.dataset.ract === 'notai' ? '已反馈' : '已放过';
-          recentAction.set(mid, actionLabel);
-          while (recentAction.size > 50) recentAction.delete(recentAction.keys().next().value);
-          if (card) {
-            const area = card.querySelector('.risk-area');
-            const riskBtn = card.querySelector('[data-risk]');
-            if (area) area.classList.remove('open');
-            if (riskBtn) riskBtn.setAttribute('aria-expanded', 'false');
-          }
-          menuSig = '';
-          renderMenu();
-        } catch (err) {
-          buttons.forEach((b) => (b.disabled = false));
-          ract.title = '操作失败，请重试';
-        }
+        await DFY.comments.restore(rp.dataset.rp, { learn: false }); // 放过：只放行
+        renderMenu();
         return;
       }
       const a = e.target.closest('[data-a]');
@@ -510,6 +443,12 @@
       e.stopPropagation();
       const act = a.dataset.a;
       // 普通操作原地生效并保留菜单；只有需要离开当前交互的动作才关闭
+      if (act === 'expand') {
+        recentOpen = !recentOpen;
+        menuSig = '';
+        renderMenu();
+        return;
+      }
       if (act === 'close') {
         close();
         return;

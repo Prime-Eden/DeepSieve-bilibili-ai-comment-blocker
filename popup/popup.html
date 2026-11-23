@@ -41,6 +41,7 @@
       <div class="field-h">识别灵敏度 <em id="th-val">标准 · 门槛 60%</em></div>
       <div class="slider"><span>宽松</span><input type="range" id="threshold" min="45" max="80" step="5" aria-label="识别灵敏度，越靠右越严格"><span>严格</span></div>
       <p class="hint" id="th-hint"></p>
+      <p class="hint small">对判错的账号点「不是」，账号加入放行名单，并降低它命中的特征在判定中的权重；点「拉黑」则提高权重；点「放过」只加入放行名单，不影响权重。同一特征净累计 3 次以上才开始影响判定，单次加减不超过 4 分，总量上限 8 分。</p>
     </div>
     <div class="card">
       <div class="field-h">悬停拉黑按钮</div>
@@ -111,12 +112,12 @@
     </div>
 
     <div class="rec-card">
-      <div class="field-h">放行账号 <em id="wl-n">0</em><button class="link danger" id="wl-clear" title="清空放行名单（点两下确认）">清空</button><span class="sub">名单内账号的评论不会被隐藏，即使被识别为 AI。在隐藏记录中点击「恢复」的账号会加入此名单。</span></div>
+      <div class="field-h">放行账号 <em id="wl-n">0</em><button class="link danger" id="wl-clear" title="清空放行名单（点两下确认）">清空</button><span class="sub">名单内账号的评论不会被隐藏，即使被识别为 AI。在隐藏记录或可疑标记中点击「不是」「放过」的账号会加入此名单。</span></div>
       <ul class="list short" id="wl"></ul>
     </div>
 
     <div class="rec-card">
-      <div class="field-h">本页隐藏记录 <em id="rb-n">0</em><button class="link" id="rb-export" title="导出本页隐藏记录（JSON）">导出</button><span class="sub">当前页面中被隐藏的评论。点击「恢复」可放行对应账号。</span></div>
+      <div class="field-h">本页隐藏记录 <em id="rb-n">0</em><button class="link" id="rb-export" title="导出本页隐藏记录（JSON）">导出</button><span class="sub">当前页面中被隐藏的评论。点击「不是」把账号加入放行名单并记为误判；点击「放过」只加入放行名单。</span></div>
       <ul class="list short" id="rb"></ul>
     </div>
 

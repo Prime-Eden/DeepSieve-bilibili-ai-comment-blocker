@@ -233,7 +233,7 @@
     const c = r && r.content;
     return c && typeof c.message === 'string' ? c.message : '';
   };
-  const snapOf = (r) => ({ id: String((r && (r.rpid_str || r.rpid)) || ''), m: midOf(r), n: nameOf(r), x: textOf(r) });
+  const snapOf = (r) => ({ id: String((r && (r.rpid_str || r.rpid)) || ''), m: midOf(r), n: nameOf(r), x: textOf(r).slice(0, 60) });
 
   /** 接口数据里的 UP 主 mid（评论接口自带 data.upper.mid，比页面状态更早可用） */
   function upOf(json) {

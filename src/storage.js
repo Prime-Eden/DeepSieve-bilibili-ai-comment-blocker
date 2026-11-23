@@ -31,8 +31,6 @@
     removedLog: [], // 隐藏总记录（跨页面跨会话持久化，上限 2000 条，新的挤掉旧的）
     importLog: [], // 导入历史（名单页底部展示，上限 50 条）
     manualStats: {}, // 人工拉黑特征计数：tag -> 次数（判定强化的反馈回路，上限 200 个标签）
-    humanStats: {}, // 人工「不是 AI」负反馈特征计数：why -> 不同账号数（上限 200 个特征）
-    humanFeedback: {}, // 已提交「不是 AI」的账号：mid -> {n,t}，账号级去重（上限 2000 个）
   };
 
   const hasChrome = typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local;

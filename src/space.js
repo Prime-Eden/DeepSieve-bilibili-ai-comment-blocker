@@ -167,11 +167,18 @@ button:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
         if (DFY.callBg) await DFY.callBg({ type: 'bl-del', mid: p.mid });
         delete DFY.lists.block[p.mid];
         render(current);
-      } else if (act === 'white') {
+      } else if (act === 'pass') {
         if (DFY.callBg) await DFY.callBg({ type: 'wl-promote', mid: p.mid, name: p.uname });
         DFY.lists.white[p.mid] = { n: p.uname };
         current.score = 0;
-        current.reasons.unshift({ w: -99, why: '你标记过这位是人类' });
+        current.reasons.unshift({ w: -99, why: '已放过该账号' });
+        render(current);
+      } else if (act === 'white') {
+        if (DFY.callBg) await DFY.callBg({ type: 'wl-promote', mid: p.mid, name: p.uname });
+        if (DFY.comments && DFY.comments.feedbackHuman) await DFY.comments.feedbackHuman(current.reasons); // 放过 = 把命中的特征记为误判
+        DFY.lists.white[p.mid] = { n: p.uname };
+        current.score = 0;
+        current.reasons.unshift({ w: -99, why: '已标记为不是 AI' });
         render(current);
       } else if (act === 'llm') {
         S.llm(current);
@@ -213,7 +220,7 @@ button:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
     else if (info.lv !== 'human') btns.push('<button class="danger" data-a="block">屏蔽此账号</button>');
     if (canLLM && !r.llm && !state.llmLoading) btns.push('<button data-a="llm">DeepSeek 精判</button>');
     if (!canLLM) btns.push('<button data-a="cfg">配置精判</button>');
-    if (!white && info.lv !== 'human') btns.push('<button data-a="white">是人类</button>');
+    if (!white && info.lv !== 'human') btns.push('<button data-a="white" title="不是 AI：加入放行名单，并把命中的特征记为误判">不是</button><button data-a="pass" title="不隐藏这个账号，不记为误判">放过</button>');
     card.innerHTML = `
 <div class="hd"><b>账号鉴定</b><span class="uid">UID ${esc(p.mid)}</span><span class="x" data-a="close" title="关闭" role="button" aria-label="关闭">×</span></div>
 ${blocked ? `<div class="notice">已在屏蔽名单里</div>` : white ? `<div class="notice">在放行名单里</div>` : ''}
@@ -269,7 +276,7 @@ ${llm}
       if (!r) return;
       if (DFY.lists.white[mid]) {
         r.score = 0;
-        r.reasons.unshift({ w: -99, why: '你标记过这位是人类' });
+        r.reasons.unshift({ w: -99, why: '已放过该账号' });
       }
       const cached = DFY.settings.llmEnabled && DFY.settings.llmKey ? DFY.memory.llmGet(mid) : null;
       if (cached) r.llm = { ai: cached.ai, reason: cached.r, cached: true }, (r.score = Math.round(r.offline * 0.3 + r.llm.ai * 0.7));
