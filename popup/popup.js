@@ -35,8 +35,19 @@
   }
 
   /* ---------- 分页（记住上次停留的页） ---------- */
+  /* 分段控件的滑块：各段等宽，滑块位置只取决于「第几段」，用 --i 驱动，不需要测量（面板隐藏时也正确） */
+  function setSeg(el, isOn) {
+    const btns = [...el.querySelectorAll(':scope > button')];
+    let idx = 0;
+    btns.forEach((b, k) => {
+      const on = isOn(b);
+      b.classList.toggle('on', on);
+      if (on) idx = k;
+    });
+    el.style.setProperty('--i', idx);
+  }
   function showTab(name) {
-    for (const b of $('tabs').children) b.classList.toggle('on', b.dataset.tab === name);
+    setSeg($('tabs'), (b) => b.dataset.tab === name);
     for (const p of document.querySelectorAll('.panel')) p.classList.toggle('on', p.dataset.panel === name);
     try {
       localStorage.setItem('dfy-tab', name);
@@ -59,6 +70,7 @@
 
   /* 识别灵敏度：滑块方向与文字一致——「严格」= 稍有痕迹就隐藏 = 隐藏门槛低；「宽松」= 证据确凿才隐藏 = 门槛高。
    * 以前滑块最右（严格）对应门槛 80%，和悬浮台里的「严格 = 50%」相反，说明文字也只讲分数、不讲后果。 */
+  const WORDS_MAX = 500; // 屏蔽词上限，与识别引擎 compileWords 的上限一致
   const TH_MIN = 45, TH_MAX = 80;
   const thLabel = (t) => (t >= 65 ? '宽松' : t >= 55 ? '标准' : '严格');
   function renderTh(t) {
@@ -78,8 +90,8 @@
     $('llmAuto').checked = !!s.llmAuto;
     $('llmVision').checked = !!s.llmVision;
     renderTh(s.threshold);
-    for (const b of $('sub-policy').children) b.classList.toggle('on', b.dataset.v === (s.subPolicy || 'fish'));
-    for (const b of $('block-btn').children) b.classList.toggle('on', b.dataset.v === (s.blockBtn || 'auto'));
+    setSeg($('sub-policy'), (b) => b.dataset.v === (s.subPolicy || 'fish'));
+    setSeg($('block-btn'), (b) => b.dataset.v === (s.blockBtn || 'auto'));
     $('sub-hint').textContent = SUB_HINT[s.subPolicy || 'fish'];
     $('llmKey').value = s.llmKey || '';
     $('llmModel').value = s.llmModel;
@@ -108,7 +120,7 @@
         : '<span class="empty">还没有屏蔽词</span>')
       : '';
     $('words-toggle').textContent = wordsOpen ? '收起' : '展开';
-    $('words-n').textContent = `${ws.length} / 500 个词`;
+    $('words-n').textContent = `${ws.length} / ${WORDS_MAX} 个词`;
   }
 
   /* ---------- 本页状态（设置页模式下也查询当前活动标签页，回收站/状态才能实时更新） ---------- */
@@ -301,7 +313,7 @@
         if (!res || !res.ok) return note('导入失败：' + ((res && res.error) || '后台无响应'), false);
         renderRemovedAll();
         appendImportLog('历史记录', res.added || 0, res.total || 0);
-        return note(res.added ? `导入完成：新增 ${res.added} 条，现有 ${res.total} 条` : `没有新增，现有 ${res.total} 条`, true);
+        return note(res.added ? `导入完成：文件共 ${entries.length} 条，新增 ${res.added} 条，其余重复或已存在，现有 ${res.total} 条` : `没有新增：文件里的 ${entries.length} 条都已存在，现有 ${res.total} 条`, true);
       }
       if (j && (j.blocklist || j.whitelist)) {
         const r = await importListJson(j);
@@ -387,7 +399,7 @@
     save();
     $('test').disabled = true;
     r.className = '';
-    r.textContent = '连接中';
+    r.innerHTML = '<i class="sp"></i>连接中';
     const res = await new Promise((ok) => chrome.runtime.sendMessage({ type: 'llm-test', key, model: S.settings.llmModel }, ok));
     $('test').disabled = false;
     if (res && res.ok) {
@@ -403,7 +415,7 @@
   function addWord(raw) {
     const w = String(raw == null ? '' : raw).trim().slice(0, 24);
     if (!w) return { ok: false, msg: '词不能为空' };
-    if ((S.customWords || []).length >= 100) return { ok: false, msg: '最多 500 个词' };
+    if ((S.customWords || []).length >= WORDS_MAX) return { ok: false, msg: `最多 ${WORDS_MAX} 个词` };
     if (S.customWords.some((x) => x.toLowerCase() === w.toLowerCase())) return { ok: false, msg: '已经有这个词了' };
     S.customWords.push(w);
     return { ok: true };
@@ -455,7 +467,7 @@
     const seen = new Set(S.customWords.map((x) => x.toLowerCase()));
     let added = 0;
     for (const w of words) {
-      if (S.customWords.length >= 100) break;
+      if (S.customWords.length >= WORDS_MAX) break;
       const k = w.toLowerCase();
       if (seen.has(k)) continue;
       seen.add(k);
@@ -465,7 +477,7 @@
     await DFY.store.set({ customWords: S.customWords });
     renderWords();
     renderSelfCheck();
-    note(S.customWords.length >= 100 ? `导入完成：新增 ${added} 个，已到 500 个上限` : `导入完成：新增 ${added} 个（原有 ${before}）`, true);
+    note(S.customWords.length >= WORDS_MAX ? `导入完成：新增 ${added} 个，已到 ${WORDS_MAX} 个上限` : `导入完成：新增 ${added} 个（原有 ${before}）`, true);
   };
   $('word-export').onclick = () => {
     if (!(S.customWords || []).length) return note('还没有屏蔽词可导出', false);
@@ -609,20 +621,33 @@
     noteTimer = setTimeout(() => el.classList.remove('on'), 2800);
   }
 
+  /** 记录导入的规范化。导出时会去掉 id，所以导入不能再要求 id：缺失时按「账号 + 时间 + 评论文本」生成稳定的 id，
+   *  同一份文件重复导入会按 id 去重，不会重复添加，也不会因为 id 为空被后台合并成一条。 */
   function normalizeRemoved(raw) {
+    const hash = (str) => {
+      let h = 5381;
+      for (let i = 0; i < str.length; i++) h = ((h << 5) + h + str.charCodeAt(i)) | 0;
+      return (h >>> 0).toString(36);
+    };
     return (Array.isArray(raw) ? raw : [])
-      .filter((x) => x && typeof x === 'object' && String(x.id || '').trim())
-      .map((x) => ({
-        id: String(x.id).trim(),
-        mid: String(x.mid || '').trim(),
-        n: String(x.n || x.name || '').slice(0, 40),
-        x: String(x.x || x.text || '').slice(0, 500),
-        sc: x.sc == null ? null : Math.max(0, Math.min(99, +x.sc || 0)),
-        f: Array.isArray(x.f) ? x.f.slice(0, 4).map((s) => String(s).slice(0, 60)) : [],
-        src: ['api', 'dom', 'manual'].includes(x.src) ? x.src : 'dom',
-        t: +x.t || Date.now(),
-      }))
-      .slice(0, 2000);
+      .filter((x) => x && typeof x === 'object' && (x.id || x.mid || x.x || x.text))
+      .map((x) => {
+        const mid = String(x.mid || '').trim();
+        const text = String(x.x || x.text || '').slice(0, 500);
+        const t = +x.t || Date.now();
+        return {
+          id: String(x.id || '').trim() || `imp-${mid || 'x'}-${t}-${hash(text)}`,
+          mid,
+          n: String(x.n || x.name || '').slice(0, 40),
+          x: text,
+          sc: x.sc == null ? null : Math.max(0, Math.min(99, +x.sc || 0)),
+          f: Array.isArray(x.f) ? x.f.slice(0, 4).map((s) => String(s).slice(0, 60)) : [],
+          src: ['api', 'dom', 'manual'].includes(x.src) ? x.src : 'dom',
+          t,
+        };
+      })
+      .sort((p, q) => p.t - q.t) // 按时间从旧到新，后台逐条放到最前，最终新的在上面
+      .slice(-2000);
   }
 
   /** 名单合并写（后台队列），返回新增数与现有总数；失败带原因 */

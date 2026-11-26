@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "DeepSieve · AI 评论过滤",
   "short_name": "DeepSieve",
-  "version": "2.17.0",
+  "version": "2.17.1",
   "description": "过滤 B 站评论区里的 AI 评论和机器人账号，命中的评论直接隐藏。数据只存在本机。",
   "icons": {
     "16": "icons/icon16.png",
